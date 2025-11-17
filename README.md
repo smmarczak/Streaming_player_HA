@@ -5,12 +5,14 @@ A custom Home Assistant integration for streaming video content from private web
 ## Features
 
 - **Automatic Video Extraction**: Intelligently extracts video streams from web pages
+- **Browser Navigation & Control**: Navigate pages, click videos, and interact with websites
 - **Popup Handling**: Automatically closes popups and overlays using configurable selectors
 - **Samsung TV Casting**: Cast directly to Samsung TVs via Chromecast protocol
 - **Selenium Support**: Optional Selenium-based extraction for JavaScript-heavy sites
 - **Multiple Video Formats**: Supports MP4, WebM, HLS (.m3u8) streams
 - **Home Assistant UI**: Full configuration through Home Assistant UI
 - **Customizable**: Configure popup selectors and video element selectors
+- **JavaScript Execution**: Run custom JavaScript on pages for advanced control
 
 ## Requirements
 
@@ -144,6 +146,45 @@ service: media_player.media_stop
 target:
   entity_id: media_player.streaming_player
 ```
+
+## Browser Navigation
+
+The integration includes powerful browser navigation features that allow you to interact with websites, click on videos, and control page navigation.
+
+### Available Navigation Services
+
+- **`streaming_player.navigate_url`** - Navigate to a specific URL
+- **`streaming_player.click_element`** - Click on elements (video links, buttons, etc.)
+- **`streaming_player.scroll_page`** - Scroll the page up/down
+- **`streaming_player.wait_for_element`** - Wait for elements to load
+- **`streaming_player.execute_script`** - Run custom JavaScript
+- **`streaming_player.get_page_source`** - Inspect page elements
+
+### Quick Example: Click a Video
+
+```yaml
+# Navigate to your videos page
+service: streaming_player.navigate_url
+target:
+  entity_id: media_player.streaming_player
+data:
+  url: "https://your-site.com/videos"
+
+# Wait a moment, then click the first video
+service: streaming_player.click_element
+target:
+  entity_id: media_player.streaming_player
+data:
+  selector: ".video-thumbnail:first-child"
+  timeout: 10
+
+# Play the stream
+service: media_player.media_play
+target:
+  entity_id: media_player.streaming_player
+```
+
+For complete navigation documentation with examples, see the [Navigation Guide](NAVIGATION_GUIDE.md).
 
 ## Samsung TV Setup
 
