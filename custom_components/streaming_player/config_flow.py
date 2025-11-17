@@ -8,7 +8,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
 
@@ -66,6 +66,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OptionsFlowHandler:
+        """Get the options flow for this handler."""
+        return OptionsFlowHandler(config_entry)
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -92,4 +100,56 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+        )
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle options flow for Streaming Player."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            # Update the config entry with new data
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, **user_input},
+            )
+            return self.async_create_entry(title="", data={})
+
+        # Get current values
+        current_data = self.config_entry.data
+
+        options_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_STREAM_URL,
+                    default=current_data.get(CONF_STREAM_URL, ""),
+                ): str,
+                vol.Required(
+                    CONF_SAMSUNG_TV_IP,
+                    default=current_data.get(CONF_SAMSUNG_TV_IP, ""),
+                ): str,
+                vol.Optional(
+                    CONF_SAMSUNG_TV_NAME,
+                    default=current_data.get(CONF_SAMSUNG_TV_NAME, "Samsung TV"),
+                ): str,
+                vol.Optional(
+                    CONF_USE_SELENIUM,
+                    default=current_data.get(CONF_USE_SELENIUM, True),
+                ): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=options_schema,
+            errors=errors,
         )

@@ -116,3 +116,42 @@ get_page_source:
     entity:
       integration: streaming_player
       domain: media_player
+
+set_stream_url:
+  name: Set Stream URL
+  description: Change the stream URL for this player.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    stream_url:
+      name: Stream URL
+      description: The new stream URL to use
+      required: true
+      example: "https://your-site.com/stream/game-456"
+      selector:
+        text:
+
+set_tv:
+  name: Set Samsung TV
+  description: Change the target Samsung TV for casting.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    tv_ip:
+      name: TV IP Address
+      description: The IP address of the Samsung TV
+      required: true
+      example: "192.168.1.101"
+      selector:
+        text:
+    tv_name:
+      name: TV Name
+      description: Friendly name for the TV (optional)
+      required: false
+      example: "Bedroom TV"
+      selector:
+        text:

@@ -33,7 +33,17 @@ class VideoScraper:
     async def get_video_url(self) -> str | None:
         """Extract video URL from the stream page."""
         if self.use_selenium:
-            return await self._get_video_url_selenium()
+            # Try Selenium first
+            video_url = await self._get_video_url_selenium()
+            if video_url:
+                return video_url
+
+            # If Selenium fails, fall back to aiohttp
+            _LOGGER.warning(
+                "Selenium extraction failed, falling back to aiohttp method. "
+                "This may not work for JavaScript-heavy sites."
+            )
+            return await self._get_video_url_aiohttp()
         else:
             return await self._get_video_url_aiohttp()
 
@@ -143,10 +153,11 @@ class VideoScraper:
         """Selenium extraction in synchronous context."""
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
-        from selenium.common.exceptions import TimeoutException, NoSuchElementException
+        from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -157,7 +168,26 @@ class VideoScraper:
 
         driver = None
         try:
-            driver = webdriver.Chrome(options=chrome_options)
+            # Try to use webdriver-manager to automatically download chromedriver
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                _LOGGER.info("Using webdriver-manager for ChromeDriver")
+            except ImportError:
+                # Fallback to system chromedriver
+                _LOGGER.warning(
+                    "webdriver-manager not installed. Install with: pip install webdriver-manager. "
+                    "Trying system chromedriver..."
+                )
+                driver = webdriver.Chrome(options=chrome_options)
+            except WebDriverException as e:
+                _LOGGER.error(
+                    "ChromeDriver not found or incompatible. "
+                    "Install ChromeDriver: https://chromedriver.chromium.org/downloads OR "
+                    "Install webdriver-manager: pip install webdriver-manager"
+                )
+                raise
             driver.get(self.stream_url)
 
             # Wait for page to load
