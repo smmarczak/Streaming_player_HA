@@ -2,7 +2,8 @@
   "domain": "streaming_player",
   "name": "Streaming Player",
   "documentation": "https://github.com/smmarczak/Streaming_player_HA",
-  "codeowners": [],
+  "issue_tracker": "https://github.com/smmarczak/Streaming_player_HA/issues",
+  "codeowners": ["@smmarczak"],
   "config_flow": true,
   "dependencies": [],
   "requirements": [
