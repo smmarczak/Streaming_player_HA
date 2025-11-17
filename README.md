@@ -186,6 +186,54 @@ target:
 
 For complete navigation documentation with examples, see the [Navigation Guide](NAVIGATION_GUIDE.md).
 
+## Changing Stream URL and TV
+
+You can dynamically change the stream URL and target TV without reconfiguring the integration.
+
+### Change Stream URL
+
+```yaml
+service: streaming_player.set_stream_url
+target:
+  entity_id: media_player.streaming_player
+data:
+  stream_url: "https://your-site.com/stream/different-game"
+```
+
+### Change Target TV
+
+Perfect for multi-room setups! Switch between different Samsung TVs:
+
+```yaml
+# Switch to bedroom TV
+service: streaming_player.set_tv
+target:
+  entity_id: media_player.streaming_player
+data:
+  tv_ip: "192.168.1.101"
+  tv_name: "Bedroom TV"
+
+# Switch to living room TV
+service: streaming_player.set_tv
+target:
+  entity_id: media_player.streaming_player
+data:
+  tv_ip: "192.168.1.100"
+  tv_name: "Living Room TV"
+```
+
+### Using Options Flow
+
+You can also update settings through the UI:
+
+1. Go to **Settings → Devices & Services**
+2. Find **Streaming Player**
+3. Click **Configure**
+4. Update Stream URL, TV IP, or other settings
+5. Click **Submit**
+
+The integration will reload automatically with new settings.
+
 ## Samsung TV Setup
 
 ### Chromecast Built-in
@@ -206,47 +254,34 @@ For better control, you can also install the Samsung SmartThings integration:
 3. In Home Assistant, add the SmartThings integration
 4. Your TV will appear as a media player entity
 
-## Selenium Setup (Optional)
+## ChromeDriver Setup
 
-For sites that heavily rely on JavaScript, you'll need Chrome/Chromium installed:
+**Good news!** ChromeDriver is now automatically managed by the integration using `webdriver-manager`.
 
-### Home Assistant OS / Supervised
+When you restart Home Assistant after installation, the integration will automatically:
+- Download the correct ChromeDriver version
+- Keep it updated
+- Handle platform-specific configurations
 
-Add the following to your `configuration.yaml`:
+### If You Encounter Issues
 
-```yaml
-shell_command:
-  install_chrome: "apk add chromium chromium-chromedriver"
-```
+If you see errors like "ChromeDriver not found" or "Session not created":
 
-Then run the shell command once.
+1. **Restart Home Assistant** - The integration auto-installs on first run
+2. **Check the logs** - Enable debug logging to see what's happening
+3. **See the installation guide** - [ChromeDriver Installation Guide](CHROMEDRIVER_INSTALL.md)
 
-### Docker
+### Quick Troubleshooting
 
-Add to your `docker-compose.yaml`:
+If automatic installation doesn't work, you can manually install Chromium:
 
-```yaml
-services:
-  homeassistant:
-    image: homeassistant/home-assistant:latest
-    # ... other config ...
-    environment:
-      - CHROME_BIN=/usr/bin/chromium
-```
-
-Install in the container:
-
+**Home Assistant OS / Docker:**
 ```bash
-docker exec -it homeassistant apk add chromium chromium-chromedriver
+apk add chromium chromium-chromedriver
 ```
-
-### Home Assistant Core (Python venv)
-
-Install Chrome/Chromium on your system:
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get update
 sudo apt-get install chromium-browser chromium-chromedriver
 ```
 
@@ -254,6 +289,8 @@ sudo apt-get install chromium-browser chromium-chromedriver
 ```bash
 brew install chromium chromedriver
 ```
+
+For complete troubleshooting steps, see [CHROMEDRIVER_INSTALL.md](CHROMEDRIVER_INSTALL.md).
 
 ## Troubleshooting
 

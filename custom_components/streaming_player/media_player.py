@@ -39,11 +39,16 @@ from .const import (
     SERVICE_EXECUTE_SCRIPT,
     SERVICE_WAIT_FOR_ELEMENT,
     SERVICE_GET_PAGE_SOURCE,
+    SERVICE_SET_STREAM_URL,
+    SERVICE_SET_TV,
     ATTR_SELECTOR,
     ATTR_URL,
     ATTR_SCRIPT,
     ATTR_DIRECTION,
     ATTR_TIMEOUT,
+    ATTR_STREAM_URL,
+    ATTR_TV_IP,
+    ATTR_TV_NAME,
 )
 from .video_scraper import VideoScraper
 from .browser_controller import BrowserController
@@ -117,6 +122,21 @@ async def async_setup_entry(
         SERVICE_GET_PAGE_SOURCE,
         {},
         "async_get_page_source",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_SET_STREAM_URL,
+        {vol.Required(ATTR_STREAM_URL): cv.string},
+        "async_set_stream_url",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_SET_TV,
+        {
+            vol.Required(ATTR_TV_IP): cv.string,
+            vol.Optional(ATTR_TV_NAME): cv.string,
+        },
+        "async_set_tv",
     )
 
 
@@ -411,6 +431,30 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             _LOGGER.info("Found %d interactive elements on page", len(elements))
             for i, elem in enumerate(elements[:10]):  # Log first 10 elements
                 _LOGGER.info("Element %d: %s", i + 1, elem)
+
+    async def async_set_stream_url(self, stream_url: str) -> None:
+        """Set a new stream URL."""
+        _LOGGER.info("Setting new stream URL: %s", stream_url)
+        self._stream_url = stream_url
+        self.async_write_ha_state()
+
+    async def async_set_tv(self, tv_ip: str, tv_name: str | None = None) -> None:
+        """Set a new Samsung TV target."""
+        _LOGGER.info("Setting new TV: %s (%s)", tv_ip, tv_name or "Samsung TV")
+        self._samsung_tv_ip = tv_ip
+        if tv_name:
+            self._samsung_tv_name = tv_name
+
+        # Close existing cast device connection
+        if self._cast_device:
+            try:
+                self._cast_device.disconnect()
+            except Exception as e:
+                _LOGGER.warning("Error disconnecting from old TV: %s", e)
+            finally:
+                self._cast_device = None
+
+        self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""

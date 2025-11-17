@@ -46,6 +46,8 @@ class BrowserController:
         """Initialize Selenium driver (runs in executor)."""
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from selenium.common.exceptions import WebDriverException
 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -57,8 +59,28 @@ class BrowserController:
             "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         )
 
-        self._driver = webdriver.Chrome(options=chrome_options)
-        _LOGGER.info("Browser controller initialized successfully")
+        try:
+            # Try to use webdriver-manager to automatically download chromedriver
+            try:
+                from webdriver_manager.chrome import ChromeDriverManager
+                service = Service(ChromeDriverManager().install())
+                self._driver = webdriver.Chrome(service=service, options=chrome_options)
+                _LOGGER.info("Browser controller initialized with webdriver-manager")
+            except ImportError:
+                # Fallback to system chromedriver
+                _LOGGER.warning(
+                    "webdriver-manager not installed. Install with: pip install webdriver-manager. "
+                    "Trying system chromedriver..."
+                )
+                self._driver = webdriver.Chrome(options=chrome_options)
+                _LOGGER.info("Browser controller initialized with system chromedriver")
+        except WebDriverException as e:
+            _LOGGER.error(
+                "ChromeDriver not found or incompatible. "
+                "Install ChromeDriver: https://chromedriver.chromium.org/downloads OR "
+                "Install webdriver-manager: pip install webdriver-manager"
+            )
+            raise
 
     async def navigate(self, url: str) -> bool:
         """Navigate to a URL."""
