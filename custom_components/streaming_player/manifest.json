@@ -1,0 +1,16 @@
+{
+  "domain": "streaming_player",
+  "name": "Streaming Player",
+  "documentation": "https://github.com/smmarczak/Streaming_player_HA",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "requirements": [
+    "aiohttp>=3.8.0",
+    "beautifulsoup4>=4.11.0",
+    "selenium>=4.0.0",
+    "pychromecast>=13.0.0"
+  ],
+  "version": "1.0.0",
+  "iot_class": "local_push"
+}

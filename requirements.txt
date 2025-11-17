@@ -1,0 +1,7 @@
+# Core requirements for Streaming Player Home Assistant Integration
+aiohttp>=3.8.0
+beautifulsoup4>=4.11.0
+pychromecast>=13.0.0
+
+# Optional - for JavaScript-heavy sites
+selenium>=4.0.0

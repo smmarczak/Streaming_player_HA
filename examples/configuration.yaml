@@ -1,0 +1,128 @@
+# Example configuration.yaml entries for Streaming Player integration
+
+# Enable logging for debugging
+logger:
+  default: info
+  logs:
+    custom_components.streaming_player: debug
+    custom_components.streaming_player.video_scraper: debug
+    custom_components.streaming_player.media_player: debug
+
+# Optional: Create input selectors for stream management
+input_select:
+  sports_streams:
+    name: "Select Sports Stream"
+    options:
+      - "https://your-private-site.com/stream/basketball"
+      - "https://your-private-site.com/stream/football"
+      - "https://your-private-site.com/stream/volleyball"
+    initial: "https://your-private-site.com/stream/basketball"
+    icon: mdi:video-box
+
+  stream_quality:
+    name: "Stream Quality"
+    options:
+      - "High"
+      - "Medium"
+      - "Low"
+    initial: "High"
+    icon: mdi:quality-high
+
+# Optional: Input boolean for auto-start
+input_boolean:
+  auto_start_stream:
+    name: "Auto-Start Stream"
+    icon: mdi:play-circle-outline
+    initial: false
+
+# Optional: Input datetime for scheduled streaming
+input_datetime:
+  stream_start_time:
+    name: "Stream Start Time"
+    has_date: false
+    has_time: true
+    initial: "19:00"
+
+# Optional: Input text for custom stream URL
+input_text:
+  custom_stream_url:
+    name: "Custom Stream URL"
+    initial: "https://your-private-site.com/stream/custom"
+    icon: mdi:link
+
+# Notifications for stream events
+notify:
+  - platform: group
+    name: all_devices
+    services:
+      - service: mobile_app_iphone
+      - service: mobile_app_android
+
+# Optional: Template sensors for stream status
+template:
+  - sensor:
+      - name: "Stream Status"
+        unique_id: stream_status
+        state: >
+          {% if is_state('media_player.streaming_player', 'playing') %}
+            Streaming to {{ state_attr('media_player.streaming_player', 'samsung_tv_name') }}
+          {% elif is_state('media_player.streaming_player', 'idle') %}
+            Ready
+          {% else %}
+            {{ states('media_player.streaming_player') }}
+          {% endif %}
+        icon: >
+          {% if is_state('media_player.streaming_player', 'playing') %}
+            mdi:cast-connected
+          {% else %}
+            mdi:cast
+          {% endif %}
+
+      - name: "Current Video URL"
+        unique_id: current_video_url
+        state: "{{ state_attr('media_player.streaming_player', 'video_url') }}"
+        icon: mdi:video
+
+  - binary_sensor:
+      - name: "Stream Active"
+        unique_id: stream_active
+        state: "{{ is_state('media_player.streaming_player', 'playing') }}"
+        device_class: running
+
+# Automation helpers
+# See automation.yaml for actual automation examples
+
+# Script helpers
+# See scripts.yaml for actual script examples
+
+# Groups for easier management
+group:
+  streaming_control:
+    name: "Streaming Control"
+    entities:
+      - media_player.streaming_player
+      - media_player.samsung_tv
+      - input_select.sports_streams
+      - input_boolean.auto_start_stream
+      - input_datetime.stream_start_time
+
+# Recorder configuration (optional - reduce database size)
+recorder:
+  exclude:
+    entity_globs:
+      - sensor.stream_status
+    entities:
+      - media_player.streaming_player
+
+# History configuration (optional)
+history:
+  include:
+    entities:
+      - media_player.streaming_player
+      - binary_sensor.stream_active
+
+# Frontend configuration for custom dashboard
+frontend:
+  themes: !include_dir_merge_named themes/
+  extra_module_url:
+    - /local/community/lovelace-card-mod/card-mod.js

@@ -1,0 +1,81 @@
+# Example automations for Streaming Player integration
+
+# Automation 1: Start stream at specific time
+- alias: "Start Local Sports Stream at 7 PM"
+  description: "Automatically start streaming local sports event"
+  trigger:
+    - platform: time
+      at: "19:00:00"
+  condition:
+    - condition: state
+      entity_id: media_player.samsung_tv
+      state: "on"
+  action:
+    - service: media_player.media_play
+      target:
+        entity_id: media_player.streaming_player
+    - service: notify.mobile_app
+      data:
+        title: "Stream Started"
+        message: "Local sports stream is now playing on Samsung TV"
+
+# Automation 2: Stop stream when TV turns off
+- alias: "Stop Stream When TV Off"
+  description: "Stop streaming when Samsung TV is turned off"
+  trigger:
+    - platform: state
+      entity_id: media_player.samsung_tv
+      to: "off"
+  action:
+    - service: media_player.media_stop
+      target:
+        entity_id: media_player.streaming_player
+
+# Automation 3: Play specific stream via input selector
+- alias: "Play Selected Stream"
+  description: "Play stream based on input select choice"
+  trigger:
+    - platform: state
+      entity_id: input_select.sports_streams
+  action:
+    - service: media_player.play_media
+      target:
+        entity_id: media_player.streaming_player
+      data:
+        media_content_id: "{{ states('input_select.sports_streams') }}"
+        media_content_type: "video"
+
+# Automation 4: Schedule different streams for different days
+- alias: "Weekly Sports Schedule"
+  description: "Play different streams based on day of week"
+  trigger:
+    - platform: time
+      at: "18:00:00"
+  condition:
+    - condition: time
+      weekday:
+        - mon
+        - wed
+        - fri
+  action:
+    - service: media_player.play_media
+      target:
+        entity_id: media_player.streaming_player
+      data:
+        media_content_id: "https://your-site.com/stream/weekly-game"
+        media_content_type: "video"
+
+# Automation 5: Send notification when stream starts
+- alias: "Stream Started Notification"
+  description: "Notify when streaming player starts playing"
+  trigger:
+    - platform: state
+      entity_id: media_player.streaming_player
+      to: "playing"
+  action:
+    - service: notify.all_devices
+      data:
+        title: "Streaming Started"
+        message: "Your sports stream is now playing on {{ state_attr('media_player.streaming_player', 'samsung_tv_name') }}"
+        data:
+          url: "{{ state_attr('media_player.streaming_player', 'video_url') }}"

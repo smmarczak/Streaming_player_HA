@@ -1,0 +1,151 @@
+# Example Lovelace dashboard configuration for Streaming Player
+
+# Add this to your Lovelace dashboard (raw configuration mode)
+
+title: Sports Streaming
+views:
+  - title: Live Streams
+    path: streaming
+    icon: mdi:cast
+    cards:
+      # Card 1: Media player control
+      - type: media-control
+        entity: media_player.streaming_player
+
+      # Card 2: Entity card with more details
+      - type: entities
+        title: Streaming Player
+        entities:
+          - entity: media_player.streaming_player
+            name: Stream Status
+          - type: attribute
+            entity: media_player.streaming_player
+            attribute: stream_url
+            name: Stream URL
+          - type: attribute
+            entity: media_player.streaming_player
+            attribute: video_url
+            name: Video URL
+          - type: attribute
+            entity: media_player.streaming_player
+            attribute: samsung_tv_name
+            name: Target TV
+
+      # Card 3: Quick action buttons
+      - type: horizontal-stack
+        cards:
+          - type: button
+            name: Play Stream
+            icon: mdi:play
+            tap_action:
+              action: call-service
+              service: media_player.media_play
+              target:
+                entity_id: media_player.streaming_player
+          - type: button
+            name: Stop Stream
+            icon: mdi:stop
+            tap_action:
+              action: call-service
+              service: media_player.media_stop
+              target:
+                entity_id: media_player.streaming_player
+
+      # Card 4: Custom button card (requires custom:button-card)
+      - type: custom:button-card
+        entity: media_player.streaming_player
+        name: Sports Stream
+        icon: mdi:basketball
+        show_state: true
+        tap_action:
+          action: call-service
+          service: script.play_local_sports
+        styles:
+          card:
+            - height: 100px
+          name:
+            - font-size: 20px
+            - font-weight: bold
+
+      # Card 5: Multiple stream selection
+      - type: entities
+        title: Available Streams
+        entities:
+          - type: button
+            name: Home Game
+            icon: mdi:home
+            action_name: PLAY
+            tap_action:
+              action: call-service
+              service: media_player.play_media
+              target:
+                entity_id: media_player.streaming_player
+              data:
+                media_content_id: "https://your-site.com/stream/home-game"
+                media_content_type: "video"
+          - type: button
+            name: Away Game
+            icon: mdi:airplane
+            action_name: PLAY
+            tap_action:
+              action: call-service
+              service: media_player.play_media
+              target:
+                entity_id: media_player.streaming_player
+              data:
+                media_content_id: "https://your-site.com/stream/away-game"
+                media_content_type: "video"
+
+      # Card 6: Conditional card (only show when playing)
+      - type: conditional
+        conditions:
+          - entity: media_player.streaming_player
+            state: playing
+        card:
+          type: markdown
+          content: >
+            ## 🔴 Stream is Live!
+
+
+            Currently streaming to **{{ state_attr('media_player.streaming_player', 'samsung_tv_name') }}**
+
+
+            Video URL: {{ state_attr('media_player.streaming_player', 'video_url') }}
+
+      # Card 7: Picture glance for visual control
+      - type: picture-glance
+        title: Streaming Control
+        image: /local/sports_background.jpg  # Add your own image
+        entities:
+          - media_player.streaming_player
+          - media_player.samsung_tv
+        camera_view: auto
+
+# Optional: Input select for multiple streams
+# Add this to your configuration.yaml
+
+# input_select:
+#   sports_streams:
+#     name: Select Stream
+#     options:
+#       - https://your-site.com/stream/game1
+#       - https://your-site.com/stream/game2
+#       - https://your-site.com/stream/game3
+#     initial: https://your-site.com/stream/game1
+#     icon: mdi:video
+
+# Then add this card to select from dropdown:
+# - type: entities
+#   entities:
+#     - input_select.sports_streams
+#     - type: button
+#       name: Play Selected Stream
+#       icon: mdi:play
+#       tap_action:
+#         action: call-service
+#         service: media_player.play_media
+#         target:
+#           entity_id: media_player.streaming_player
+#         data:
+#           media_content_id: "{{ states('input_select.sports_streams') }}"
+#           media_content_type: "video"

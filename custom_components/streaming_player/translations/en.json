@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Streaming Player Setup",
+        "description": "Configure your streaming player to cast video content to Samsung TV",
+        "data": {
+          "name": "Name",
+          "stream_url": "Stream URL",
+          "samsung_tv_ip": "Samsung TV IP Address",
+          "samsung_tv_name": "Samsung TV Name",
+          "use_selenium": "Use Selenium (for popup handling)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Samsung TV",
+      "invalid_url": "Invalid stream URL",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This device is already configured"
+    }
+  }
+}
