@@ -1,0 +1,118 @@
+# Services for Streaming Player integration
+
+click_element:
+  name: Click Element
+  description: Click an element on the current page using a CSS selector.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    selector:
+      name: CSS Selector
+      description: The CSS selector for the element to click (e.g., "button.play", "#video-link", ".thumbnail:nth-child(2)")
+      required: true
+      example: "button.play-button"
+      selector:
+        text:
+    timeout:
+      name: Timeout
+      description: Maximum time to wait for the element in seconds
+      required: false
+      default: 10
+      example: 15
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: seconds
+
+navigate_url:
+  name: Navigate to URL
+  description: Navigate the browser to a specific URL.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    url:
+      name: URL
+      description: The URL to navigate to
+      required: true
+      example: "https://example.com/streams"
+      selector:
+        text:
+
+scroll_page:
+  name: Scroll Page
+  description: Scroll the current page in the specified direction.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    direction:
+      name: Direction
+      description: Direction to scroll (down, up, top, bottom)
+      required: false
+      default: "down"
+      example: "down"
+      selector:
+        select:
+          options:
+            - "down"
+            - "up"
+            - "top"
+            - "bottom"
+
+execute_script:
+  name: Execute JavaScript
+  description: Execute JavaScript code on the current page.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    script:
+      name: JavaScript Code
+      description: The JavaScript code to execute
+      required: true
+      example: "document.querySelector('button').click();"
+      selector:
+        text:
+          multiline: true
+
+wait_for_element:
+  name: Wait for Element
+  description: Wait for an element to appear on the page.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    selector:
+      name: CSS Selector
+      description: The CSS selector for the element to wait for
+      required: true
+      example: "video"
+      selector:
+        text:
+    timeout:
+      name: Timeout
+      description: Maximum time to wait for the element in seconds
+      required: false
+      default: 10
+      example: 30
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: seconds
+
+get_page_source:
+  name: Get Page Source
+  description: Get the current page source and log available elements (check logs for output).
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player

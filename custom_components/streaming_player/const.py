@@ -34,8 +34,20 @@ DEFAULT_VIDEO_SELECTORS: Final = [
 # Service names
 SERVICE_PLAY_STREAM: Final = "play_stream"
 SERVICE_STOP_STREAM: Final = "stop_stream"
+SERVICE_CLICK_ELEMENT: Final = "click_element"
+SERVICE_NAVIGATE_URL: Final = "navigate_url"
+SERVICE_SCROLL_PAGE: Final = "scroll_page"
+SERVICE_EXECUTE_SCRIPT: Final = "execute_script"
+SERVICE_WAIT_FOR_ELEMENT: Final = "wait_for_element"
+SERVICE_GET_PAGE_SOURCE: Final = "get_page_source"
 
 # Attributes
 ATTR_STREAM_URL: Final = "stream_url"
 ATTR_VIDEO_URL: Final = "video_url"
 ATTR_STATUS: Final = "status"
+ATTR_SELECTOR: Final = "selector"
+ATTR_URL: Final = "url"
+ATTR_SCRIPT: Final = "script"
+ATTR_DIRECTION: Final = "direction"
+ATTR_TIMEOUT: Final = "timeout"
+ATTR_PAGE_SOURCE: Final = "page_source"

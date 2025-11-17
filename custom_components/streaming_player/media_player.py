@@ -5,6 +5,8 @@ import asyncio
 import logging
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -12,8 +14,12 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers.entity_platform import (
+    AddEntitiesCallback,
+    async_get_current_platform,
+)
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -27,8 +33,20 @@ from .const import (
     DEFAULT_VIDEO_SELECTORS,
     SERVICE_PLAY_STREAM,
     SERVICE_STOP_STREAM,
+    SERVICE_CLICK_ELEMENT,
+    SERVICE_NAVIGATE_URL,
+    SERVICE_SCROLL_PAGE,
+    SERVICE_EXECUTE_SCRIPT,
+    SERVICE_WAIT_FOR_ELEMENT,
+    SERVICE_GET_PAGE_SOURCE,
+    ATTR_SELECTOR,
+    ATTR_URL,
+    ATTR_SCRIPT,
+    ATTR_DIRECTION,
+    ATTR_TIMEOUT,
 )
 from .video_scraper import VideoScraper
+from .browser_controller import BrowserController
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,6 +71,53 @@ async def async_setup_entry(
     )
 
     async_add_entities([player], True)
+
+    # Register navigation services
+    platform = async_get_current_platform()
+
+    platform.async_register_entity_service(
+        SERVICE_CLICK_ELEMENT,
+        {
+            vol.Required(ATTR_SELECTOR): cv.string,
+            vol.Optional(ATTR_TIMEOUT, default=10): cv.positive_int,
+        },
+        "async_click_element",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_NAVIGATE_URL,
+        {vol.Required(ATTR_URL): cv.string},
+        "async_navigate_url",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_SCROLL_PAGE,
+        {
+            vol.Optional(ATTR_DIRECTION, default="down"): cv.string,
+        },
+        "async_scroll_page",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_EXECUTE_SCRIPT,
+        {vol.Required(ATTR_SCRIPT): cv.string},
+        "async_execute_script",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_WAIT_FOR_ELEMENT,
+        {
+            vol.Required(ATTR_SELECTOR): cv.string,
+            vol.Optional(ATTR_TIMEOUT, default=10): cv.positive_int,
+        },
+        "async_wait_for_element",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_GET_PAGE_SOURCE,
+        {},
+        "async_get_page_source",
+    )
 
 
 class StreamingMediaPlayer(MediaPlayerEntity):
@@ -90,6 +155,8 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self._video_url: str | None = None
         self._scraper: VideoScraper | None = None
         self._cast_device = None
+        self._browser: BrowserController | None = None
+        self._current_page_url: str | None = None
 
         # Generate unique ID
         self._attr_unique_id = f"streaming_player_{samsung_tv_ip}_{stream_url}"
@@ -107,6 +174,8 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             "video_url": self._video_url,
             "samsung_tv_ip": self._samsung_tv_ip,
             "samsung_tv_name": self._samsung_tv_name,
+            "current_page_url": self._current_page_url,
+            "browser_active": self._browser is not None,
         }
 
     async def async_play_media(
@@ -269,6 +338,83 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         except Exception as e:
             _LOGGER.error("Error stopping stream: %s", e)
 
+    async def async_navigate_url(self, url: str) -> None:
+        """Navigate to a URL in the browser."""
+        _LOGGER.info("Navigating to URL: %s", url)
+
+        if not self._browser:
+            self._browser = BrowserController(self._use_selenium)
+            await self._browser.initialize()
+
+        success = await self._browser.navigate(url)
+        if success:
+            self._current_page_url = await self._browser.get_current_url()
+            self.async_write_ha_state()
+
+    async def async_click_element(self, selector: str, timeout: int = 10) -> None:
+        """Click an element on the current page."""
+        _LOGGER.info("Clicking element: %s", selector)
+
+        if not self._browser:
+            _LOGGER.error("Browser not initialized. Navigate to a URL first.")
+            return
+
+        success = await self._browser.click_element(selector, timeout)
+        if success:
+            self._current_page_url = await self._browser.get_current_url()
+            self.async_write_ha_state()
+
+    async def async_scroll_page(self, direction: str = "down") -> None:
+        """Scroll the page in the specified direction."""
+        _LOGGER.info("Scrolling page: %s", direction)
+
+        if not self._browser:
+            _LOGGER.error("Browser not initialized. Navigate to a URL first.")
+            return
+
+        await self._browser.scroll_page(direction)
+
+    async def async_execute_script(self, script: str) -> None:
+        """Execute JavaScript on the current page."""
+        _LOGGER.info("Executing script")
+
+        if not self._browser:
+            _LOGGER.error("Browser not initialized. Navigate to a URL first.")
+            return
+
+        result = await self._browser.execute_script(script)
+        _LOGGER.info("Script result: %s", result)
+
+    async def async_wait_for_element(self, selector: str, timeout: int = 10) -> None:
+        """Wait for an element to appear on the page."""
+        _LOGGER.info("Waiting for element: %s", selector)
+
+        if not self._browser:
+            _LOGGER.error("Browser not initialized. Navigate to a URL first.")
+            return
+
+        await self._browser.wait_for_element(selector, timeout)
+
+    async def async_get_page_source(self) -> None:
+        """Get the current page source and log it."""
+        _LOGGER.info("Getting page source")
+
+        if not self._browser:
+            _LOGGER.error("Browser not initialized. Navigate to a URL first.")
+            return
+
+        source = await self._browser.get_page_source()
+        if source:
+            _LOGGER.info("Page source length: %d characters", len(source))
+            # Log a preview of available elements
+            elements = await self._browser.get_elements("a, button, video, iframe")
+            _LOGGER.info("Found %d interactive elements on page", len(elements))
+            for i, elem in enumerate(elements[:10]):  # Log first 10 elements
+                _LOGGER.info("Element %d: %s", i + 1, elem)
+
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when entity is removed."""
         await self._stop_stream()
+        if self._browser:
+            await self._browser.close()
+            self._browser = None
