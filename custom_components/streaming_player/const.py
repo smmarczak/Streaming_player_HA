@@ -8,12 +8,19 @@ CONF_STREAM_URL: Final = "stream_url"
 CONF_SAMSUNG_TV_IP: Final = "samsung_tv_ip"
 CONF_SAMSUNG_TV_NAME: Final = "samsung_tv_name"
 CONF_USE_SELENIUM: Final = "use_selenium"
+CONF_EXTRACTION_METHOD: Final = "extraction_method"
 CONF_POPUP_SELECTORS: Final = "popup_selectors"
 CONF_VIDEO_SELECTORS: Final = "video_selectors"
+
+# Extraction methods
+EXTRACTION_YTDLP: Final = "yt-dlp"
+EXTRACTION_SELENIUM: Final = "selenium"
+EXTRACTION_AIOHTTP: Final = "aiohttp"
 
 # Default values
 DEFAULT_NAME: Final = "Streaming Player"
 DEFAULT_USE_SELENIUM: Final = True
+DEFAULT_EXTRACTION_METHOD: Final = EXTRACTION_YTDLP
 DEFAULT_POPUP_SELECTORS: Final = [
     "button[class*='close']",
     "div[class*='popup'] button",

@@ -27,10 +27,15 @@ from .const import (
     CONF_SAMSUNG_TV_IP,
     CONF_SAMSUNG_TV_NAME,
     CONF_USE_SELENIUM,
+    CONF_EXTRACTION_METHOD,
     CONF_POPUP_SELECTORS,
     CONF_VIDEO_SELECTORS,
     DEFAULT_POPUP_SELECTORS,
     DEFAULT_VIDEO_SELECTORS,
+    DEFAULT_EXTRACTION_METHOD,
+    EXTRACTION_YTDLP,
+    EXTRACTION_SELENIUM,
+    EXTRACTION_AIOHTTP,
     SERVICE_PLAY_STREAM,
     SERVICE_STOP_STREAM,
     SERVICE_CLICK_ELEMENT,
@@ -52,6 +57,7 @@ from .const import (
 )
 from .video_scraper import VideoScraper
 from .browser_controller import BrowserController
+from .ytdlp_extractor import YtdlpExtractor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,7 +76,7 @@ async def async_setup_entry(
         config[CONF_STREAM_URL],
         config[CONF_SAMSUNG_TV_IP],
         config.get(CONF_SAMSUNG_TV_NAME, "Samsung TV"),
-        config.get(CONF_USE_SELENIUM, True),
+        config.get(CONF_EXTRACTION_METHOD, DEFAULT_EXTRACTION_METHOD),
         config.get(CONF_POPUP_SELECTORS, DEFAULT_POPUP_SELECTORS),
         config.get(CONF_VIDEO_SELECTORS, DEFAULT_VIDEO_SELECTORS),
     )
@@ -157,7 +163,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         stream_url: str,
         samsung_tv_ip: str,
         samsung_tv_name: str,
-        use_selenium: bool,
+        extraction_method: str,
         popup_selectors: list[str],
         video_selectors: list[str],
     ) -> None:
@@ -167,7 +173,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self._stream_url = stream_url
         self._samsung_tv_ip = samsung_tv_ip
         self._samsung_tv_name = samsung_tv_name
-        self._use_selenium = use_selenium
+        self._extraction_method = extraction_method
         self._popup_selectors = popup_selectors
         self._video_selectors = video_selectors
 
@@ -194,6 +200,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             "video_url": self._video_url,
             "samsung_tv_ip": self._samsung_tv_ip,
             "samsung_tv_name": self._samsung_tv_name,
+            "extraction_method": self._extraction_method,
             "current_page_url": self._current_page_url,
             "browser_active": self._browser is not None,
         }
@@ -223,16 +230,35 @@ class StreamingMediaPlayer(MediaPlayerEntity):
 
             stream_url = url or self._stream_url
 
-            # Create scraper and extract video URL
-            _LOGGER.info("Extracting video URL from: %s", stream_url)
-            self._scraper = VideoScraper(
+            # Extract video URL based on configured method
+            _LOGGER.info(
+                "Extracting video URL from: %s (method: %s)",
                 stream_url,
-                self._popup_selectors,
-                self._video_selectors,
-                self._use_selenium,
+                self._extraction_method
             )
 
-            self._video_url = await self._scraper.get_video_url()
+            if self._extraction_method == EXTRACTION_YTDLP:
+                # Use yt-dlp (recommended)
+                extractor = YtdlpExtractor(stream_url)
+                self._video_url = await extractor.get_video_url()
+            elif self._extraction_method == EXTRACTION_SELENIUM:
+                # Use Selenium-based scraper
+                self._scraper = VideoScraper(
+                    stream_url,
+                    self._popup_selectors,
+                    self._video_selectors,
+                    use_selenium=True,
+                )
+                self._video_url = await self._scraper.get_video_url()
+            else:
+                # Use aiohttp-based scraper (basic)
+                self._scraper = VideoScraper(
+                    stream_url,
+                    self._popup_selectors,
+                    self._video_selectors,
+                    use_selenium=False,
+                )
+                self._video_url = await self._scraper.get_video_url()
 
             if not self._video_url:
                 _LOGGER.error("Failed to extract video URL")

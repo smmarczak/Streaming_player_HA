@@ -3,6 +3,9 @@ aiohttp>=3.8.0
 beautifulsoup4>=4.11.0
 pychromecast>=13.0.0
 
-# For browser navigation and JavaScript-heavy sites
-selenium>=4.0.0
-webdriver-manager>=4.0.0
+# Video extraction (recommended method)
+yt-dlp>=2023.1.0
+
+# Optional: For browser navigation only
+# selenium>=4.0.0
+# webdriver-manager>=4.0.0
