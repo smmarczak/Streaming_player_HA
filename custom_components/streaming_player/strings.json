@@ -9,7 +9,20 @@
           "stream_url": "Stream URL",
           "samsung_tv_ip": "Samsung TV IP Address",
           "samsung_tv_name": "Samsung TV Name",
-          "use_selenium": "Use Selenium (for popup handling)"
+          "extraction_method": "Extraction Method"
+        },
+        "data_description": {
+          "extraction_method": "yt-dlp (recommended) | selenium (browser) | aiohttp (basic)"
+        }
+      },
+      "init": {
+        "title": "Streaming Player Options",
+        "description": "Update streaming player settings",
+        "data": {
+          "stream_url": "Stream URL",
+          "samsung_tv_ip": "Samsung TV IP Address",
+          "samsung_tv_name": "Samsung TV Name",
+          "extraction_method": "Extraction Method"
         }
       }
     },

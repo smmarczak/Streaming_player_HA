@@ -18,8 +18,13 @@ from .const import (
     CONF_SAMSUNG_TV_IP,
     CONF_SAMSUNG_TV_NAME,
     CONF_USE_SELENIUM,
+    CONF_EXTRACTION_METHOD,
     DEFAULT_NAME,
     DEFAULT_USE_SELENIUM,
+    DEFAULT_EXTRACTION_METHOD,
+    EXTRACTION_YTDLP,
+    EXTRACTION_SELENIUM,
+    EXTRACTION_AIOHTTP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,7 +35,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_STREAM_URL): str,
         vol.Required(CONF_SAMSUNG_TV_IP): str,
         vol.Optional(CONF_SAMSUNG_TV_NAME, default="Samsung TV"): str,
-        vol.Optional(CONF_USE_SELENIUM, default=DEFAULT_USE_SELENIUM): bool,
+        vol.Optional(
+            CONF_EXTRACTION_METHOD, default=DEFAULT_EXTRACTION_METHOD
+        ): vol.In([EXTRACTION_YTDLP, EXTRACTION_SELENIUM, EXTRACTION_AIOHTTP]),
     }
 )
 
@@ -142,9 +149,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=current_data.get(CONF_SAMSUNG_TV_NAME, "Samsung TV"),
                 ): str,
                 vol.Optional(
-                    CONF_USE_SELENIUM,
-                    default=current_data.get(CONF_USE_SELENIUM, True),
-                ): bool,
+                    CONF_EXTRACTION_METHOD,
+                    default=current_data.get(CONF_EXTRACTION_METHOD, DEFAULT_EXTRACTION_METHOD),
+                ): vol.In([EXTRACTION_YTDLP, EXTRACTION_SELENIUM, EXTRACTION_AIOHTTP]),
             }
         )
 
