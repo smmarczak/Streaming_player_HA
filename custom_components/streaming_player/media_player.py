@@ -458,6 +458,10 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         if not target_entity.startswith("media_player."):
             target_entity = f"media_player.{target_entity}"
 
+        # Try multiple playback methods
+        playback_success = False
+
+        # Method 1: Standard play_media
         try:
             await self.hass.services.async_call(
                 "media_player",
@@ -469,23 +473,89 @@ class StreamingMediaPlayer(MediaPlayerEntity):
                 },
                 blocking=True,
             )
-
-            _LOGGER.info("Sent to %s", target_entity)
-            self._video_url = stream_url
-
-            # Set up listener for when song ends
-            await self._setup_end_listener(target_entity)
-
+            playback_success = True
+            _LOGGER.info("Sent to %s (standard method)", target_entity)
         except NotImplementedError:
-            _LOGGER.error(
-                "Media player %s does not support play_media. "
-                "Try a different device like a Voice PE or cast-enabled speaker.",
+            _LOGGER.warning(
+                "Standard play_media not supported by %s, trying announce mode",
                 target_entity
             )
-            self._attr_state = MediaPlayerState.IDLE
-            self.async_write_ha_state()
         except Exception as e:
-            _LOGGER.error("Error playing to %s: %s", target_entity, e)
+            _LOGGER.warning("Standard play_media failed for %s: %s", target_entity, e)
+
+        # Method 2: Announce mode (for Voice PE and similar)
+        if not playback_success:
+            try:
+                await self.hass.services.async_call(
+                    "media_player",
+                    "play_media",
+                    {
+                        "entity_id": target_entity,
+                        "media_content_id": stream_url,
+                        "media_content_type": "music",
+                        "announce": True,
+                    },
+                    blocking=True,
+                )
+                playback_success = True
+                _LOGGER.info("Sent to %s (announce mode)", target_entity)
+            except Exception as e:
+                _LOGGER.warning("Announce mode failed for %s: %s", target_entity, e)
+
+        # Method 3: Try tts.speak with media URL (for ESPHome media players)
+        if not playback_success:
+            try:
+                # Try calling with media_player domain but audio content type
+                await self.hass.services.async_call(
+                    "media_player",
+                    "play_media",
+                    {
+                        "entity_id": target_entity,
+                        "media_content_id": stream_url,
+                        "media_content_type": "audio/mpeg",
+                    },
+                    blocking=True,
+                )
+                playback_success = True
+                _LOGGER.info("Sent to %s (audio/mpeg type)", target_entity)
+            except Exception as e:
+                _LOGGER.warning("audio/mpeg type failed for %s: %s", target_entity, e)
+
+        # Method 4: Try alternate entity if this looks like a HAV entity
+        if not playback_success and "hav_" in target_entity:
+            # Try the underlying ESPHome media player instead
+            alt_entity = target_entity.replace("hav_", "home_assistant_voice_").replace("_media_player", "_0976b2_media_player")
+            _LOGGER.info("Trying alternate entity: %s", alt_entity)
+
+            state = self.hass.states.get(alt_entity)
+            if state:
+                try:
+                    await self.hass.services.async_call(
+                        "media_player",
+                        "play_media",
+                        {
+                            "entity_id": alt_entity,
+                            "media_content_id": stream_url,
+                            "media_content_type": "music",
+                        },
+                        blocking=True,
+                    )
+                    playback_success = True
+                    target_entity = alt_entity  # Update for listener
+                    _LOGGER.info("Sent to %s (alternate entity)", alt_entity)
+                except Exception as e:
+                    _LOGGER.warning("Alternate entity failed: %s", e)
+
+        if playback_success:
+            self._video_url = stream_url
+            # Set up listener for when song ends
+            await self._setup_end_listener(target_entity)
+        else:
+            _LOGGER.error(
+                "All playback methods failed for %s. "
+                "Try selecting a different media player entity.",
+                target_entity
+            )
             self._attr_state = MediaPlayerState.IDLE
             self.async_write_ha_state()
 
