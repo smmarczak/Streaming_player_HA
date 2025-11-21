@@ -27,7 +27,8 @@ async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Streaming Player from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = entry.data
+    # Store as mutable dict so we can add runtime data like selected_media_player
+    hass.data[DOMAIN][entry.entry_id] = dict(entry.data)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
