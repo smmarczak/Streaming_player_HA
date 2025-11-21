@@ -11,6 +11,9 @@ from homeassistant.components.media_player import (
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
+    BrowseMedia,
+    MediaClass,
+    MediaType,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
@@ -234,6 +237,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         MediaPlayerEntityFeature.PLAY
         | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.PLAY_MEDIA
+        | MediaPlayerEntityFeature.BROWSE_MEDIA
     )
 
     def __init__(
@@ -304,13 +308,6 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             attrs["current_artist"] = self._current_song.get("artist", "")
             attrs["current_album"] = self._current_song.get("album", "")
         return attrs
-
-    async def async_play_media(
-        self, media_type: str, media_id: str, **kwargs: Any
-    ) -> None:
-        """Play media."""
-        _LOGGER.info("Playing media: %s", media_id)
-        await self._play_stream(media_id)
 
     async def async_media_play(self) -> None:
         """Send play command."""
@@ -757,7 +754,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         await self._cast_music(song, cast_target)
 
     async def _cast_music(self, song: dict, cast_target: str | None = None) -> None:
-        """Cast music to a Chromecast device."""
+        """Play music to a Home Assistant media player entity."""
         client = await self._get_subsonic_client()
         if not client:
             return
@@ -767,59 +764,385 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         stream_url = client.get_stream_url(song_id)
 
         _LOGGER.info(
-            "Casting: %s by %s",
+            "Playing: %s by %s",
             song.get("title", "Unknown"),
             song.get("artist", "Unknown"),
         )
 
+        self._attr_state = MediaPlayerState.PLAYING
+        self.async_write_ha_state()
+
+        # Determine target media player entity
+        target_entity = cast_target
+
+        # If no target specified, log the URL for manual use
+        if not target_entity:
+            self._video_url = stream_url
+            _LOGGER.info("No target specified. Stream URL: %s", stream_url)
+            _LOGGER.info("Use cast_target parameter with a media_player entity_id")
+            return
+
+        # Ensure it's a valid entity_id format
+        if not target_entity.startswith("media_player."):
+            target_entity = f"media_player.{target_entity}"
+
         try:
-            import pychromecast
-
-            self._attr_state = MediaPlayerState.PLAYING
-            self.async_write_ha_state()
-
-            # Determine target device
-            target_name = cast_target or self._samsung_tv_name
-            target_ip = self._samsung_tv_ip
-
-            # Try to find Chromecast by name
-            chromecasts, browser = pychromecast.get_listed_chromecasts(
-                friendly_names=[target_name]
+            # Use Home Assistant's media_player.play_media service
+            await self.hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": target_entity,
+                    "media_content_id": stream_url,
+                    "media_content_type": "music",
+                },
+                blocking=True,
             )
 
-            if not chromecasts:
-                _LOGGER.info("No device found by name '%s', trying IP", target_name)
-                try:
-                    cast = pychromecast.Chromecast(target_ip)
-                    cast.wait()
-                    chromecasts = [cast]
-                except Exception as e:
-                    _LOGGER.error("Failed to connect by IP: %s", e)
-
-            if chromecasts:
-                cast = chromecasts[0]
-                cast.wait()
-
-                mc = cast.media_controller
-
-                # Get content type based on format
-                content_type = "audio/mpeg"  # Default for MP3
-
-                mc.play_media(stream_url, content_type)
-                mc.block_until_active()
-
-                _LOGGER.info("Successfully cast music to %s", target_name)
-                self._cast_device = cast
-            else:
-                _LOGGER.error("No Chromecast device found")
-                # Still store the URL for manual access
-                self._video_url = stream_url
-                _LOGGER.info("Music stream URL: %s", stream_url)
-
-        except ImportError:
-            _LOGGER.error("pychromecast not available")
+            _LOGGER.info("Successfully sent music to %s", target_entity)
             self._video_url = stream_url
+
         except Exception as e:
-            _LOGGER.error("Error casting music: %s", e)
+            _LOGGER.error("Error playing music to %s: %s", target_entity, e)
             self._attr_state = MediaPlayerState.IDLE
             self.async_write_ha_state()
+
+    async def async_browse_media(
+        self,
+        media_content_type: str | None = None,
+        media_content_id: str | None = None,
+    ) -> BrowseMedia:
+        """Implement the media browser."""
+        if not self._navidrome_url:
+            raise ValueError("Navidrome not configured")
+
+        client = await self._get_subsonic_client()
+        if not client:
+            raise ValueError("Cannot connect to Navidrome")
+
+        # Root level - show categories
+        if media_content_id is None or media_content_id == "root":
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="root",
+                media_content_type="library",
+                title="Navidrome Music",
+                can_play=False,
+                can_expand=True,
+                children=[
+                    BrowseMedia(
+                        media_class=MediaClass.DIRECTORY,
+                        media_content_id="genres",
+                        media_content_type="genres",
+                        title="Genres",
+                        can_play=False,
+                        can_expand=True,
+                    ),
+                    BrowseMedia(
+                        media_class=MediaClass.DIRECTORY,
+                        media_content_id="artists",
+                        media_content_type="artists",
+                        title="Artists",
+                        can_play=False,
+                        can_expand=True,
+                    ),
+                    BrowseMedia(
+                        media_class=MediaClass.DIRECTORY,
+                        media_content_id="albums",
+                        media_content_type="albums",
+                        title="Albums",
+                        can_play=False,
+                        can_expand=True,
+                    ),
+                    BrowseMedia(
+                        media_class=MediaClass.DIRECTORY,
+                        media_content_id="playlists",
+                        media_content_type="playlists",
+                        title="Playlists",
+                        can_play=False,
+                        can_expand=True,
+                    ),
+                    BrowseMedia(
+                        media_class=MediaClass.DIRECTORY,
+                        media_content_id="random",
+                        media_content_type="random",
+                        title="Random Songs",
+                        can_play=True,
+                        can_expand=True,
+                    ),
+                ],
+            )
+
+        # Genre list
+        if media_content_id == "genres":
+            genres = await client.get_genres()
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.GENRE,
+                    media_content_id=f"genre:{genre.get('value', '')}",
+                    media_content_type="genre",
+                    title=genre.get("value", "Unknown"),
+                    can_play=True,
+                    can_expand=True,
+                )
+                for genre in genres
+                if genre.get("value")
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="genres",
+                media_content_type="genres",
+                title="Genres",
+                can_play=False,
+                can_expand=True,
+                children=children,
+            )
+
+        # Songs in a genre
+        if media_content_id.startswith("genre:"):
+            genre_name = media_content_id[6:]
+            songs = await client.get_songs_by_genre(genre_name, count=100)
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.TRACK,
+                    media_content_id=f"song:{song.get('id', '')}",
+                    media_content_type="music",
+                    title=f"{song.get('title', 'Unknown')} - {song.get('artist', 'Unknown')}",
+                    can_play=True,
+                    can_expand=False,
+                    thumbnail=client.get_cover_art_url(song.get("coverArt", "")) if song.get("coverArt") else None,
+                )
+                for song in songs
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.GENRE,
+                media_content_id=media_content_id,
+                media_content_type="genre",
+                title=genre_name,
+                can_play=True,
+                can_expand=True,
+                children=children,
+            )
+
+        # Artist list
+        if media_content_id == "artists":
+            artists = await client.get_artists()
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.ARTIST,
+                    media_content_id=f"artist:{artist.get('id', '')}",
+                    media_content_type="artist",
+                    title=artist.get("name", "Unknown"),
+                    can_play=False,
+                    can_expand=True,
+                )
+                for artist in artists[:100]  # Limit to 100
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="artists",
+                media_content_type="artists",
+                title="Artists",
+                can_play=False,
+                can_expand=True,
+                children=children,
+            )
+
+        # Albums by artist
+        if media_content_id.startswith("artist:"):
+            artist_id = media_content_id[7:]
+            albums = await client.get_albums(artist_id)
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.ALBUM,
+                    media_content_id=f"album:{album.get('id', '')}",
+                    media_content_type="album",
+                    title=album.get("name", "Unknown"),
+                    can_play=True,
+                    can_expand=True,
+                    thumbnail=client.get_cover_art_url(album.get("coverArt", "")) if album.get("coverArt") else None,
+                )
+                for album in albums
+            ]
+            artist_name = albums[0].get("artist", "Unknown") if albums else "Unknown"
+            return BrowseMedia(
+                media_class=MediaClass.ARTIST,
+                media_content_id=media_content_id,
+                media_content_type="artist",
+                title=artist_name,
+                can_play=False,
+                can_expand=True,
+                children=children,
+            )
+
+        # Album list
+        if media_content_id == "albums":
+            albums = await client.get_albums()
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.ALBUM,
+                    media_content_id=f"album:{album.get('id', '')}",
+                    media_content_type="album",
+                    title=f"{album.get('name', 'Unknown')} - {album.get('artist', 'Unknown')}",
+                    can_play=True,
+                    can_expand=True,
+                    thumbnail=client.get_cover_art_url(album.get("coverArt", "")) if album.get("coverArt") else None,
+                )
+                for album in albums[:100]  # Limit to 100
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="albums",
+                media_content_type="albums",
+                title="Albums",
+                can_play=False,
+                can_expand=True,
+                children=children,
+            )
+
+        # Songs in album
+        if media_content_id.startswith("album:"):
+            album_id = media_content_id[6:]
+            songs = await client.get_album_songs(album_id)
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.TRACK,
+                    media_content_id=f"song:{song.get('id', '')}",
+                    media_content_type="music",
+                    title=f"{song.get('track', '')}. {song.get('title', 'Unknown')}",
+                    can_play=True,
+                    can_expand=False,
+                    thumbnail=client.get_cover_art_url(song.get("coverArt", "")) if song.get("coverArt") else None,
+                )
+                for song in songs
+            ]
+            album_name = songs[0].get("album", "Unknown") if songs else "Unknown"
+            return BrowseMedia(
+                media_class=MediaClass.ALBUM,
+                media_content_id=media_content_id,
+                media_content_type="album",
+                title=album_name,
+                can_play=True,
+                can_expand=True,
+                children=children,
+            )
+
+        # Playlist list
+        if media_content_id == "playlists":
+            playlists = await client.get_playlists()
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.PLAYLIST,
+                    media_content_id=f"playlist:{playlist.get('id', '')}",
+                    media_content_type="playlist",
+                    title=f"{playlist.get('name', 'Unknown')} ({playlist.get('songCount', 0)} songs)",
+                    can_play=True,
+                    can_expand=True,
+                )
+                for playlist in playlists
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="playlists",
+                media_content_type="playlists",
+                title="Playlists",
+                can_play=False,
+                can_expand=True,
+                children=children,
+            )
+
+        # Songs in playlist
+        if media_content_id.startswith("playlist:"):
+            playlist_id = media_content_id[9:]
+            songs = await client.get_playlist_songs(playlist_id)
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.TRACK,
+                    media_content_id=f"song:{song.get('id', '')}",
+                    media_content_type="music",
+                    title=f"{song.get('title', 'Unknown')} - {song.get('artist', 'Unknown')}",
+                    can_play=True,
+                    can_expand=False,
+                    thumbnail=client.get_cover_art_url(song.get("coverArt", "")) if song.get("coverArt") else None,
+                )
+                for song in songs
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.PLAYLIST,
+                media_content_id=media_content_id,
+                media_content_type="playlist",
+                title="Playlist",
+                can_play=True,
+                can_expand=True,
+                children=children,
+            )
+
+        # Random songs
+        if media_content_id == "random":
+            songs = await client.get_random_songs(size=50)
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.TRACK,
+                    media_content_id=f"song:{song.get('id', '')}",
+                    media_content_type="music",
+                    title=f"{song.get('title', 'Unknown')} - {song.get('artist', 'Unknown')}",
+                    can_play=True,
+                    can_expand=False,
+                    thumbnail=client.get_cover_art_url(song.get("coverArt", "")) if song.get("coverArt") else None,
+                )
+                for song in songs
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id="random",
+                media_content_type="random",
+                title="Random Songs",
+                can_play=True,
+                can_expand=True,
+                children=children,
+            )
+
+        # Default fallback
+        return await self.async_browse_media(None, "root")
+
+    async def async_play_media(
+        self, media_type: str, media_id: str, **kwargs: Any
+    ) -> None:
+        """Play media from browser selection."""
+        # Handle song playback from browser
+        if media_id.startswith("song:"):
+            song_id = media_id[5:]
+            # Get target from kwargs or use default
+            target = kwargs.get("enqueue") or None
+            await self.async_play_song(song_id, target)
+            return
+
+        # Handle genre playback
+        if media_id.startswith("genre:"):
+            genre_name = media_id[6:]
+            await self.async_play_genre(genre_name)
+            return
+
+        # Handle album playback
+        if media_id.startswith("album:"):
+            album_id = media_id[6:]
+            client = await self._get_subsonic_client()
+            if client:
+                songs = await client.get_album_songs(album_id)
+                if songs:
+                    await self._cast_music(songs[0])
+            return
+
+        # Handle playlist playback
+        if media_id.startswith("playlist:"):
+            playlist_id = media_id[9:]
+            await self.async_play_playlist(playlist_id)
+            return
+
+        # Handle random playback
+        if media_id == "random":
+            await self.async_play_random()
+            return
+
+        # Fallback to original play_media behavior
+        await self._play_stream(media_id)
