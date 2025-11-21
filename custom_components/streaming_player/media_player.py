@@ -17,7 +17,7 @@ from homeassistant.components.media_player import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.entity_platform import (
     AddEntitiesCallback,
     async_get_current_platform,
@@ -241,6 +241,10 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         | MediaPlayerEntityFeature.STOP
         | MediaPlayerEntityFeature.PLAY_MEDIA
         | MediaPlayerEntityFeature.BROWSE_MEDIA
+        | MediaPlayerEntityFeature.NEXT_TRACK
+        | MediaPlayerEntityFeature.PREVIOUS_TRACK
+        | MediaPlayerEntityFeature.SHUFFLE_SET
+        | MediaPlayerEntityFeature.REPEAT_SET
     )
 
     def __init__(
@@ -288,6 +292,14 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self._current_song: dict | None = None
         self._available_genres: list[str] = []
 
+        # Queue state
+        self._queue: list[dict] = []
+        self._queue_index: int = 0
+        self._shuffle: bool = False
+        self._repeat: str = "off"  # off, all, one
+        self._target_player: str | None = None
+        self._state_listener_unsub = None
+
         # Generate unique ID
         self._attr_unique_id = f"streaming_player_{samsung_tv_ip}_{stream_url}"
 
@@ -295,6 +307,53 @@ class StreamingMediaPlayer(MediaPlayerEntity):
     def state(self) -> MediaPlayerState:
         """Return the state of the player."""
         return self._attr_state
+
+    @property
+    def media_title(self) -> str | None:
+        """Return the title of current playing media."""
+        if self._current_song:
+            return self._current_song.get("title")
+        return None
+
+    @property
+    def media_artist(self) -> str | None:
+        """Return the artist of current playing media."""
+        if self._current_song:
+            return self._current_song.get("artist")
+        return None
+
+    @property
+    def media_album_name(self) -> str | None:
+        """Return the album name of current playing media."""
+        if self._current_song:
+            return self._current_song.get("album")
+        return None
+
+    @property
+    def media_image_url(self) -> str | None:
+        """Return the image URL of current playing media."""
+        if self._current_song and self._subsonic_client:
+            cover_art = self._current_song.get("coverArt")
+            if cover_art:
+                return self._subsonic_client.get_cover_art_url(cover_art)
+        return None
+
+    @property
+    def media_duration(self) -> int | None:
+        """Return the duration of current playing media in seconds."""
+        if self._current_song:
+            return self._current_song.get("duration")
+        return None
+
+    @property
+    def shuffle(self) -> bool:
+        """Return shuffle state."""
+        return self._shuffle
+
+    @property
+    def repeat(self) -> str:
+        """Return repeat state."""
+        return self._repeat
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -314,7 +373,163 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             attrs["current_song"] = self._current_song.get("title", "")
             attrs["current_artist"] = self._current_song.get("artist", "")
             attrs["current_album"] = self._current_song.get("album", "")
+
+        # Queue info
+        attrs["queue_size"] = len(self._queue)
+        attrs["queue_position"] = self._queue_index + 1 if self._queue else 0
+        attrs["target_player"] = self._target_player
+
         return attrs
+
+    async def async_media_next_track(self) -> None:
+        """Skip to next track."""
+        if not self._queue:
+            return
+
+        if self._queue_index < len(self._queue) - 1:
+            self._queue_index += 1
+        elif self._repeat == "all":
+            self._queue_index = 0
+        else:
+            _LOGGER.info("End of queue")
+            return
+
+        await self._play_current_queue_item()
+
+    async def async_media_previous_track(self) -> None:
+        """Go to previous track."""
+        if not self._queue:
+            return
+
+        if self._queue_index > 0:
+            self._queue_index -= 1
+        elif self._repeat == "all":
+            self._queue_index = len(self._queue) - 1
+
+        await self._play_current_queue_item()
+
+    async def async_set_shuffle(self, shuffle: bool) -> None:
+        """Set shuffle mode."""
+        self._shuffle = shuffle
+        _LOGGER.info("Shuffle set to: %s", shuffle)
+        self.async_write_ha_state()
+
+    async def async_set_repeat(self, repeat: str) -> None:
+        """Set repeat mode."""
+        self._repeat = repeat
+        _LOGGER.info("Repeat set to: %s", repeat)
+        self.async_write_ha_state()
+
+    async def _play_current_queue_item(self) -> None:
+        """Play the current item in the queue."""
+        if not self._queue or self._queue_index >= len(self._queue):
+            return
+
+        song = self._queue[self._queue_index]
+        await self._play_song_to_target(song)
+
+    async def _play_song_to_target(self, song: dict) -> None:
+        """Play a song to the target media player."""
+        client = await self._get_subsonic_client()
+        if not client:
+            return
+
+        self._current_song = song
+        song_id = song.get("id")
+        stream_url = client.get_stream_url(song_id)
+
+        _LOGGER.info(
+            "Playing: %s by %s (%d/%d)",
+            song.get("title", "Unknown"),
+            song.get("artist", "Unknown"),
+            self._queue_index + 1,
+            len(self._queue),
+        )
+
+        self._attr_state = MediaPlayerState.PLAYING
+        self.async_write_ha_state()
+
+        if not self._target_player:
+            self._video_url = stream_url
+            _LOGGER.info("No target player set. Stream URL: %s", stream_url)
+            return
+
+        target_entity = self._target_player
+        if not target_entity.startswith("media_player."):
+            target_entity = f"media_player.{target_entity}"
+
+        try:
+            await self.hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": target_entity,
+                    "media_content_id": stream_url,
+                    "media_content_type": "music",
+                },
+                blocking=True,
+            )
+
+            _LOGGER.info("Sent to %s", target_entity)
+            self._video_url = stream_url
+
+            # Set up listener for when song ends
+            await self._setup_end_listener(target_entity)
+
+        except Exception as e:
+            _LOGGER.error("Error playing to %s: %s", target_entity, e)
+            self._attr_state = MediaPlayerState.IDLE
+            self.async_write_ha_state()
+
+    async def _setup_end_listener(self, target_entity: str) -> None:
+        """Set up listener to detect when target player finishes."""
+        from homeassistant.helpers.event import async_track_state_change_event
+
+        # Remove existing listener
+        if self._state_listener_unsub:
+            self._state_listener_unsub()
+            self._state_listener_unsub = None
+
+        @callback
+        def _state_changed(event):
+            """Handle target player state changes."""
+            new_state = event.data.get("new_state")
+            if not new_state:
+                return
+
+            # Check if playback ended (idle or off)
+            if new_state.state in ("idle", "off", "paused"):
+                # Small delay to avoid catching brief pauses
+                self.hass.async_create_task(self._check_and_play_next())
+
+        self._state_listener_unsub = async_track_state_change_event(
+            self.hass, [target_entity], _state_changed
+        )
+
+    async def _check_and_play_next(self) -> None:
+        """Check if we should play next track."""
+        import asyncio
+        await asyncio.sleep(1)  # Brief delay
+
+        # Check if target is still idle
+        if self._target_player:
+            target = self._target_player
+            if not target.startswith("media_player."):
+                target = f"media_player.{target}"
+
+            state = self.hass.states.get(target)
+            if state and state.state in ("idle", "off"):
+                # Play next track
+                if self._queue_index < len(self._queue) - 1:
+                    self._queue_index += 1
+                    await self._play_current_queue_item()
+                elif self._repeat == "all":
+                    self._queue_index = 0
+                    await self._play_current_queue_item()
+                else:
+                    _LOGGER.info("Queue finished")
+                    self._attr_state = MediaPlayerState.IDLE
+                    self.async_write_ha_state()
 
     async def async_media_play(self) -> None:
         """Send play command."""
@@ -652,9 +867,40 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             _LOGGER.warning("No songs found for genre: %s", genre)
             return
 
-        # Get first song and cast it
-        song = songs[0]
-        await self._cast_music(song, cast_target)
+        # Set up queue and play
+        await self._setup_and_play_queue(songs, cast_target, shuffle)
+
+    async def _setup_and_play_queue(
+        self,
+        songs: list[dict],
+        cast_target: str | None = None,
+        shuffle: bool = False,
+    ) -> None:
+        """Set up queue with songs and start playing."""
+        import random as rand
+
+        # Set target player
+        self._target_player = cast_target
+        if not self._target_player:
+            entry_data = self.hass.data.get(DOMAIN, {}).get(self._config_entry_id, {})
+            if isinstance(entry_data, dict):
+                self._target_player = entry_data.get("selected_media_player")
+        if not self._target_player:
+            self._target_player = self._default_media_player
+
+        # Shuffle if requested
+        if shuffle:
+            rand.shuffle(songs)
+
+        # Set up queue
+        self._queue = songs
+        self._queue_index = 0
+        self._shuffle = shuffle
+
+        _LOGGER.info("Queue set up with %d songs", len(songs))
+
+        # Start playing
+        await self._play_current_queue_item()
 
     async def async_play_random(
         self,
@@ -674,8 +920,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             _LOGGER.warning("No songs found")
             return
 
-        song = songs[0]
-        await self._cast_music(song, cast_target)
+        await self._setup_and_play_queue(songs, cast_target, shuffle=True)
 
     async def async_play_song(
         self,
@@ -691,7 +936,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
 
         # Create a minimal song dict with the ID
         song = {"id": song_id}
-        await self._cast_music(song, cast_target)
+        await self._setup_and_play_queue([song], cast_target)
 
     async def async_search_music(self, query: str) -> None:
         """Search for music in Navidrome."""
@@ -753,12 +998,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             _LOGGER.warning("No songs in playlist")
             return
 
-        if shuffle:
-            import random
-            random.shuffle(songs)
-
-        song = songs[0]
-        await self._cast_music(song, cast_target)
+        await self._setup_and_play_queue(songs, cast_target, shuffle)
 
     async def _cast_music(self, song: dict, cast_target: str | None = None) -> None:
         """Play music to a Home Assistant media player entity."""
