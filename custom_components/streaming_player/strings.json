@@ -12,13 +12,15 @@
           "extraction_method": "Extraction Method",
           "navidrome_url": "Navidrome URL (for music)",
           "navidrome_username": "Navidrome Username",
-          "navidrome_password": "Navidrome Password"
+          "navidrome_password": "Navidrome Password",
+          "default_media_player": "Default Media Player"
         },
         "data_description": {
           "stream_url": "Leave empty if only using music",
           "samsung_tv_ip": "Leave empty if only using music",
           "extraction_method": "yt-dlp (recommended) | selenium (browser) | aiohttp (basic)",
-          "navidrome_url": "e.g., http://192.168.1.100:4533"
+          "navidrome_url": "e.g., http://192.168.1.100:4533",
+          "default_media_player": "Entity ID to play music on (e.g., media_player.voice_pe)"
         }
       },
       "init": {
@@ -31,7 +33,8 @@
           "extraction_method": "Extraction Method",
           "navidrome_url": "Navidrome URL",
           "navidrome_username": "Navidrome Username",
-          "navidrome_password": "Navidrome Password"
+          "navidrome_password": "Navidrome Password",
+          "default_media_player": "Default Media Player"
         }
       }
     },

@@ -16,6 +16,7 @@ CONF_VIDEO_SELECTORS: Final = "video_selectors"
 CONF_NAVIDROME_URL: Final = "navidrome_url"
 CONF_NAVIDROME_USERNAME: Final = "navidrome_username"
 CONF_NAVIDROME_PASSWORD: Final = "navidrome_password"
+CONF_DEFAULT_MEDIA_PLAYER: Final = "default_media_player"
 
 # Extraction methods
 EXTRACTION_YTDLP: Final = "yt-dlp"
