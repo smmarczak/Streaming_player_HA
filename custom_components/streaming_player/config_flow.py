@@ -19,6 +19,9 @@ from .const import (
     CONF_SAMSUNG_TV_NAME,
     CONF_USE_SELENIUM,
     CONF_EXTRACTION_METHOD,
+    CONF_NAVIDROME_URL,
+    CONF_NAVIDROME_USERNAME,
+    CONF_NAVIDROME_PASSWORD,
     DEFAULT_NAME,
     DEFAULT_USE_SELENIUM,
     DEFAULT_EXTRACTION_METHOD,
@@ -38,6 +41,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_EXTRACTION_METHOD, default=DEFAULT_EXTRACTION_METHOD
         ): vol.In([EXTRACTION_YTDLP, EXTRACTION_SELENIUM, EXTRACTION_AIOHTTP]),
+        vol.Optional(CONF_NAVIDROME_URL, default=""): str,
+        vol.Optional(CONF_NAVIDROME_USERNAME, default=""): str,
+        vol.Optional(CONF_NAVIDROME_PASSWORD, default=""): str,
     }
 )
 
@@ -152,6 +158,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     CONF_EXTRACTION_METHOD,
                     default=current_data.get(CONF_EXTRACTION_METHOD, DEFAULT_EXTRACTION_METHOD),
                 ): vol.In([EXTRACTION_YTDLP, EXTRACTION_SELENIUM, EXTRACTION_AIOHTTP]),
+                vol.Optional(
+                    CONF_NAVIDROME_URL,
+                    default=current_data.get(CONF_NAVIDROME_URL, ""),
+                ): str,
+                vol.Optional(
+                    CONF_NAVIDROME_USERNAME,
+                    default=current_data.get(CONF_NAVIDROME_USERNAME, ""),
+                ): str,
+                vol.Optional(
+                    CONF_NAVIDROME_PASSWORD,
+                    default=current_data.get(CONF_NAVIDROME_PASSWORD, ""),
+                ): str,
             }
         )
 

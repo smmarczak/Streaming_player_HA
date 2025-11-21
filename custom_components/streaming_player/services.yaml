@@ -155,3 +155,163 @@ set_tv:
       example: "Bedroom TV"
       selector:
         text:
+
+# Music services (Navidrome/Subsonic)
+
+get_genres:
+  name: Get Music Genres
+  description: Get available music genres from Navidrome. Results shown in entity attributes.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+
+play_genre:
+  name: Play Genre
+  description: Play music from a specific genre.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    genre:
+      name: Genre
+      description: The music genre to play
+      required: true
+      example: "Rock"
+      selector:
+        text:
+    count:
+      name: Song Count
+      description: Number of songs to queue
+      required: false
+      default: 20
+      example: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+    shuffle:
+      name: Shuffle
+      description: Shuffle the songs
+      required: false
+      default: true
+      selector:
+        boolean:
+    cast_target:
+      name: Cast Target
+      description: Name of Chromecast device (e.g., "Voice PE", "Living Room TV")
+      required: false
+      example: "Voice PE"
+      selector:
+        text:
+
+play_random:
+  name: Play Random Music
+  description: Play random songs, optionally filtered by genre.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    count:
+      name: Song Count
+      description: Number of songs to play
+      required: false
+      default: 20
+      example: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+    genre:
+      name: Genre Filter
+      description: Optional genre to filter by
+      required: false
+      example: "Jazz"
+      selector:
+        text:
+    cast_target:
+      name: Cast Target
+      description: Name of Chromecast device
+      required: false
+      example: "Voice PE"
+      selector:
+        text:
+
+play_song:
+  name: Play Song
+  description: Play a specific song by its ID.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    song_id:
+      name: Song ID
+      description: The ID of the song to play (from search results)
+      required: true
+      example: "abc123"
+      selector:
+        text:
+    cast_target:
+      name: Cast Target
+      description: Name of Chromecast device
+      required: false
+      example: "Voice PE"
+      selector:
+        text:
+
+search_music:
+  name: Search Music
+  description: Search for artists, albums, and songs. Results shown in logs.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    query:
+      name: Search Query
+      description: What to search for
+      required: true
+      example: "Beatles"
+      selector:
+        text:
+
+get_playlists:
+  name: Get Playlists
+  description: Get available playlists from Navidrome. Results shown in logs.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+
+play_playlist:
+  name: Play Playlist
+  description: Play a playlist from Navidrome.
+  target:
+    entity:
+      integration: streaming_player
+      domain: media_player
+  fields:
+    playlist_id:
+      name: Playlist ID
+      description: The ID of the playlist to play
+      required: true
+      example: "xyz789"
+      selector:
+        text:
+    shuffle:
+      name: Shuffle
+      description: Shuffle the playlist
+      required: false
+      default: false
+      selector:
+        boolean:
+    cast_target:
+      name: Cast Target
+      description: Name of Chromecast device
+      required: false
+      example: "Voice PE"
+      selector:
+        text:
