@@ -36,6 +36,7 @@ from .const import (
     CONF_NAVIDROME_URL,
     CONF_NAVIDROME_USERNAME,
     CONF_NAVIDROME_PASSWORD,
+    CONF_DEFAULT_MEDIA_PLAYER,
     DEFAULT_POPUP_SELECTORS,
     DEFAULT_VIDEO_SELECTORS,
     DEFAULT_EXTRACTION_METHOD,
@@ -103,6 +104,7 @@ async def async_setup_entry(
         config.get(CONF_NAVIDROME_URL, ""),
         config.get(CONF_NAVIDROME_USERNAME, ""),
         config.get(CONF_NAVIDROME_PASSWORD, ""),
+        config.get(CONF_DEFAULT_MEDIA_PLAYER, ""),
     )
 
     async_add_entities([player], True)
@@ -253,6 +255,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         navidrome_url: str = "",
         navidrome_username: str = "",
         navidrome_password: str = "",
+        default_media_player: str = "",
     ) -> None:
         """Initialize the media player."""
         self.hass = hass
@@ -268,6 +271,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self._navidrome_url = navidrome_url
         self._navidrome_username = navidrome_username
         self._navidrome_password = navidrome_password
+        self._default_media_player = default_media_player
         self._subsonic_client: SubsonicClient | None = None
 
         self._attr_state = MediaPlayerState.IDLE
@@ -773,13 +777,13 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self.async_write_ha_state()
 
         # Determine target media player entity
-        target_entity = cast_target
+        target_entity = cast_target or self._default_media_player
 
         # If no target specified, log the URL for manual use
         if not target_entity:
             self._video_url = stream_url
             _LOGGER.info("No target specified. Stream URL: %s", stream_url)
-            _LOGGER.info("Use cast_target parameter with a media_player entity_id")
+            _LOGGER.info("Set a default media player in config or use cast_target parameter")
             return
 
         # Ensure it's a valid entity_id format

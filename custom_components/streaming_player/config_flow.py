@@ -22,6 +22,7 @@ from .const import (
     CONF_NAVIDROME_URL,
     CONF_NAVIDROME_USERNAME,
     CONF_NAVIDROME_PASSWORD,
+    CONF_DEFAULT_MEDIA_PLAYER,
     DEFAULT_NAME,
     DEFAULT_USE_SELENIUM,
     DEFAULT_EXTRACTION_METHOD,
@@ -44,6 +45,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_NAVIDROME_URL, default=""): str,
         vol.Optional(CONF_NAVIDROME_USERNAME, default=""): str,
         vol.Optional(CONF_NAVIDROME_PASSWORD, default=""): str,
+        vol.Optional(CONF_DEFAULT_MEDIA_PLAYER, default=""): str,
     }
 )
 
@@ -182,6 +184,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_NAVIDROME_PASSWORD,
                     default=current_data.get(CONF_NAVIDROME_PASSWORD, ""),
+                ): str,
+                vol.Optional(
+                    CONF_DEFAULT_MEDIA_PLAYER,
+                    default=current_data.get(CONF_DEFAULT_MEDIA_PLAYER, ""),
                 ): str,
             }
         )
