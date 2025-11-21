@@ -449,12 +449,18 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self._attr_state = MediaPlayerState.PLAYING
         self.async_write_ha_state()
 
-        if not self._target_player:
+        # Get fresh target player selection each time
+        target_entity = None
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self._config_entry_id, {})
+        if isinstance(entry_data, dict):
+            target_entity = entry_data.get("selected_media_player")
+        if not target_entity:
+            target_entity = self._target_player or self._default_media_player
+
+        if not target_entity:
             self._video_url = stream_url
             _LOGGER.info("No target player set. Stream URL: %s", stream_url)
             return
-
-        target_entity = self._target_player
         if not target_entity.startswith("media_player."):
             target_entity = f"media_player.{target_entity}"
 
@@ -521,14 +527,22 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             except Exception as e:
                 _LOGGER.warning("audio/mpeg type failed for %s: %s", target_entity, e)
 
-        # Method 4: Try alternate entity if this looks like a HAV entity
-        if not playback_success and "hav_" in target_entity:
-            # Try the underlying ESPHome media player instead
-            alt_entity = target_entity.replace("hav_", "home_assistant_voice_").replace("_media_player", "_0976b2_media_player")
-            _LOGGER.info("Trying alternate entity: %s", alt_entity)
+        # Method 4: Try alternate entities (find ESPHome/Voice media players)
+        if not playback_success:
+            # Find related media players that might work better
+            all_entities = self.hass.states.async_entity_ids("media_player")
 
-            state = self.hass.states.get(alt_entity)
-            if state:
+            # Look for Voice PE / ESPHome media players
+            alt_candidates = []
+            for ent in all_entities:
+                if ent == target_entity:
+                    continue
+                # Look for home_assistant_voice entities or similar ESPHome devices
+                if "home_assistant_voice" in ent or "esphome" in ent.lower():
+                    alt_candidates.append(ent)
+
+            for alt_entity in alt_candidates:
+                _LOGGER.info("Trying alternate entity: %s", alt_entity)
                 try:
                     await self.hass.services.async_call(
                         "media_player",
@@ -543,8 +557,9 @@ class StreamingMediaPlayer(MediaPlayerEntity):
                     playback_success = True
                     target_entity = alt_entity  # Update for listener
                     _LOGGER.info("Sent to %s (alternate entity)", alt_entity)
+                    break
                 except Exception as e:
-                    _LOGGER.warning("Alternate entity failed: %s", e)
+                    _LOGGER.warning("Alternate entity %s failed: %s", alt_entity, e)
 
         if playback_success:
             self._video_url = stream_url
