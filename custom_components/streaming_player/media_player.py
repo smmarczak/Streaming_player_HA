@@ -757,7 +757,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         await self._cast_music(song, cast_target)
 
     async def _cast_music(self, song: dict, cast_target: str | None = None) -> None:
-        """Cast music to a Chromecast device."""
+        """Play music to a Home Assistant media player entity."""
         client = await self._get_subsonic_client()
         if not client:
             return
@@ -767,59 +767,45 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         stream_url = client.get_stream_url(song_id)
 
         _LOGGER.info(
-            "Casting: %s by %s",
+            "Playing: %s by %s",
             song.get("title", "Unknown"),
             song.get("artist", "Unknown"),
         )
 
+        self._attr_state = MediaPlayerState.PLAYING
+        self.async_write_ha_state()
+
+        # Determine target media player entity
+        target_entity = cast_target
+
+        # If no target specified, log the URL for manual use
+        if not target_entity:
+            self._video_url = stream_url
+            _LOGGER.info("No target specified. Stream URL: %s", stream_url)
+            _LOGGER.info("Use cast_target parameter with a media_player entity_id")
+            return
+
+        # Ensure it's a valid entity_id format
+        if not target_entity.startswith("media_player."):
+            target_entity = f"media_player.{target_entity}"
+
         try:
-            import pychromecast
-
-            self._attr_state = MediaPlayerState.PLAYING
-            self.async_write_ha_state()
-
-            # Determine target device
-            target_name = cast_target or self._samsung_tv_name
-            target_ip = self._samsung_tv_ip
-
-            # Try to find Chromecast by name
-            chromecasts, browser = pychromecast.get_listed_chromecasts(
-                friendly_names=[target_name]
+            # Use Home Assistant's media_player.play_media service
+            await self.hass.services.async_call(
+                "media_player",
+                "play_media",
+                {
+                    "entity_id": target_entity,
+                    "media_content_id": stream_url,
+                    "media_content_type": "music",
+                },
+                blocking=True,
             )
 
-            if not chromecasts:
-                _LOGGER.info("No device found by name '%s', trying IP", target_name)
-                try:
-                    cast = pychromecast.Chromecast(target_ip)
-                    cast.wait()
-                    chromecasts = [cast]
-                except Exception as e:
-                    _LOGGER.error("Failed to connect by IP: %s", e)
-
-            if chromecasts:
-                cast = chromecasts[0]
-                cast.wait()
-
-                mc = cast.media_controller
-
-                # Get content type based on format
-                content_type = "audio/mpeg"  # Default for MP3
-
-                mc.play_media(stream_url, content_type)
-                mc.block_until_active()
-
-                _LOGGER.info("Successfully cast music to %s", target_name)
-                self._cast_device = cast
-            else:
-                _LOGGER.error("No Chromecast device found")
-                # Still store the URL for manual access
-                self._video_url = stream_url
-                _LOGGER.info("Music stream URL: %s", stream_url)
-
-        except ImportError:
-            _LOGGER.error("pychromecast not available")
+            _LOGGER.info("Successfully sent music to %s", target_entity)
             self._video_url = stream_url
+
         except Exception as e:
-            _LOGGER.error("Error casting music: %s", e)
+            _LOGGER.error("Error playing music to %s: %s", target_entity, e)
             self._attr_state = MediaPlayerState.IDLE
             self.async_write_ha_state()

@@ -199,12 +199,13 @@ play_genre:
       selector:
         boolean:
     cast_target:
-      name: Cast Target
-      description: Name of Chromecast device (e.g., "Voice PE", "Living Room TV")
+      name: Target Media Player
+      description: Entity ID of media player (e.g., "media_player.voice_pe_kitchen")
       required: false
-      example: "Voice PE"
+      example: "media_player.voice_pe"
       selector:
-        text:
+        entity:
+          domain: media_player
 
 play_random:
   name: Play Random Music
@@ -232,12 +233,13 @@ play_random:
       selector:
         text:
     cast_target:
-      name: Cast Target
-      description: Name of Chromecast device
+      name: Target Media Player
+      description: Entity ID of media player (e.g., "media_player.voice_pe")
       required: false
-      example: "Voice PE"
+      example: "media_player.voice_pe"
       selector:
-        text:
+        entity:
+          domain: media_player
 
 play_song:
   name: Play Song
@@ -255,12 +257,13 @@ play_song:
       selector:
         text:
     cast_target:
-      name: Cast Target
-      description: Name of Chromecast device
+      name: Target Media Player
+      description: Entity ID of media player (e.g., "media_player.voice_pe")
       required: false
-      example: "Voice PE"
+      example: "media_player.voice_pe"
       selector:
-        text:
+        entity:
+          domain: media_player
 
 search_music:
   name: Search Music
@@ -309,9 +312,10 @@ play_playlist:
       selector:
         boolean:
     cast_target:
-      name: Cast Target
-      description: Name of Chromecast device
+      name: Target Media Player
+      description: Entity ID of media player (e.g., "media_player.voice_pe")
       required: false
-      example: "Voice PE"
+      example: "media_player.voice_pe"
       selector:
-        text:
+        entity:
+          domain: media_player
