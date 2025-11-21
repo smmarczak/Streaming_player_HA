@@ -3,18 +3,20 @@
     "step": {
       "user": {
         "title": "Streaming Player Setup",
-        "description": "Configure your streaming player to cast video content to Samsung TV",
+        "description": "Configure video streaming, music from Navidrome, or both",
         "data": {
           "name": "Name",
-          "stream_url": "Stream URL",
-          "samsung_tv_ip": "Samsung TV IP Address",
+          "stream_url": "Stream URL (for video)",
+          "samsung_tv_ip": "Samsung TV IP (for video)",
           "samsung_tv_name": "Samsung TV Name",
           "extraction_method": "Extraction Method",
-          "navidrome_url": "Navidrome URL (optional)",
+          "navidrome_url": "Navidrome URL (for music)",
           "navidrome_username": "Navidrome Username",
           "navidrome_password": "Navidrome Password"
         },
         "data_description": {
+          "stream_url": "Leave empty if only using music",
+          "samsung_tv_ip": "Leave empty if only using music",
           "extraction_method": "yt-dlp (recommended) | selenium (browser) | aiohttp (basic)",
           "navidrome_url": "e.g., http://192.168.1.100:4533"
         }
