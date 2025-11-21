@@ -94,6 +94,7 @@ async def async_setup_entry(
 
     player = StreamingMediaPlayer(
         hass,
+        config_entry.entry_id,
         config[CONF_NAME],
         config[CONF_STREAM_URL],
         config[CONF_SAMSUNG_TV_IP],
@@ -245,6 +246,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
     def __init__(
         self,
         hass: HomeAssistant,
+        entry_id: str,
         name: str,
         stream_url: str,
         samsung_tv_ip: str,
@@ -259,6 +261,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
     ) -> None:
         """Initialize the media player."""
         self.hass = hass
+        self._config_entry_id = entry_id
         self._attr_name = name
         self._stream_url = stream_url
         self._samsung_tv_ip = samsung_tv_ip
@@ -777,7 +780,17 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         self.async_write_ha_state()
 
         # Determine target media player entity
-        target_entity = cast_target or self._default_media_player
+        # Priority: cast_target parameter > select entity > default config
+        target_entity = cast_target
+
+        if not target_entity:
+            # Check if there's a selection from the select entity
+            entry_data = self.hass.data.get(DOMAIN, {}).get(self._config_entry_id, {})
+            if isinstance(entry_data, dict):
+                target_entity = entry_data.get("selected_media_player")
+
+        if not target_entity:
+            target_entity = self._default_media_player
 
         # If no target specified, log the URL for manual use
         if not target_entity:
