@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
+
+# Thread pool for blocking operations
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ytdlp")
 
 
 class YtdlpExtractor:
@@ -18,23 +22,21 @@ class YtdlpExtractor:
     async def get_video_url(self) -> str | None:
         """Extract video URL using yt-dlp."""
         try:
-            import yt_dlp
-
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self._extract)
-
-        except ImportError:
-            _LOGGER.error(
-                "yt-dlp not available. Install with: pip install yt-dlp"
-            )
-            return None
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(_executor, self._extract)
         except Exception as e:
             _LOGGER.error("Error with yt-dlp extraction: %s", e)
             return None
 
     def _extract(self) -> str | None:
         """Extract video URL synchronously."""
-        import yt_dlp
+        try:
+            import yt_dlp
+        except ImportError:
+            _LOGGER.error(
+                "yt-dlp not available. Install with: pip install yt-dlp"
+            )
+            return None
 
         ydl_opts = {
             'quiet': True,
@@ -107,28 +109,32 @@ class YtdlpExtractor:
                     _LOGGER.debug("Info keys: %s", list(info.keys()))
                     return None
 
-        except yt_dlp.utils.DownloadError as e:
-            _LOGGER.error("yt-dlp download error: %s", e)
-            return None
         except Exception as e:
-            _LOGGER.error("yt-dlp extraction error: %s", e)
+            error_str = str(e)
+            if "Unsupported URL" in error_str:
+                _LOGGER.error(
+                    "yt-dlp: Unsupported URL. This may be a homepage, not a video page. "
+                    "Navigate to a specific video first."
+                )
+            else:
+                _LOGGER.error("yt-dlp extraction error: %s", e)
             return None
 
     async def get_video_info(self) -> dict[str, Any] | None:
         """Get full video information."""
         try:
-            import yt_dlp
-
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self._get_info)
-
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(_executor, self._get_info)
         except Exception as e:
             _LOGGER.error("Error getting video info: %s", e)
             return None
 
     def _get_info(self) -> dict[str, Any] | None:
         """Get video info synchronously."""
-        import yt_dlp
+        try:
+            import yt_dlp
+        except ImportError:
+            return None
 
         ydl_opts = {
             'quiet': True,

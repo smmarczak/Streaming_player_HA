@@ -54,12 +54,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
     # Validate URL format if provided
-    stream_url = data.get(CONF_STREAM_URL, "")
+    stream_url = data.get(CONF_STREAM_URL, "").strip()
     if stream_url and not stream_url.startswith(("http://", "https://")):
         raise ValueError("Invalid URL format")
 
     # Validate IP address format if provided
-    ip = data.get(CONF_SAMSUNG_TV_IP, "")
+    ip = data.get(CONF_SAMSUNG_TV_IP, "").strip()
     if ip:
         parts = ip.split(".")
         if len(parts) != 4:
@@ -73,8 +73,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             raise ValueError("Invalid IP address")
 
     # Validate Navidrome URL if provided
-    navidrome_url = data.get(CONF_NAVIDROME_URL, "")
+    navidrome_url = data.get(CONF_NAVIDROME_URL, "").strip()
+    _LOGGER.debug("Validating Navidrome URL: '%s'", navidrome_url)
     if navidrome_url and not navidrome_url.startswith(("http://", "https://")):
+        _LOGGER.error("Invalid Navidrome URL - must start with http:// or https://. Got: '%s'", navidrome_url)
         raise ValueError("Invalid Navidrome URL format")
 
     # Ensure at least one mode is configured
