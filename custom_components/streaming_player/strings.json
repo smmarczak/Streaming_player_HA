@@ -9,10 +9,14 @@
           "stream_url": "Stream URL",
           "samsung_tv_ip": "Samsung TV IP Address",
           "samsung_tv_name": "Samsung TV Name",
-          "extraction_method": "Extraction Method"
+          "extraction_method": "Extraction Method",
+          "navidrome_url": "Navidrome URL (optional)",
+          "navidrome_username": "Navidrome Username",
+          "navidrome_password": "Navidrome Password"
         },
         "data_description": {
-          "extraction_method": "yt-dlp (recommended) | selenium (browser) | aiohttp (basic)"
+          "extraction_method": "yt-dlp (recommended) | selenium (browser) | aiohttp (basic)",
+          "navidrome_url": "e.g., http://192.168.1.100:4533"
         }
       },
       "init": {
@@ -22,7 +26,10 @@
           "stream_url": "Stream URL",
           "samsung_tv_ip": "Samsung TV IP Address",
           "samsung_tv_name": "Samsung TV Name",
-          "extraction_method": "Extraction Method"
+          "extraction_method": "Extraction Method",
+          "navidrome_url": "Navidrome URL",
+          "navidrome_username": "Navidrome Username",
+          "navidrome_password": "Navidrome Password"
         }
       }
     },

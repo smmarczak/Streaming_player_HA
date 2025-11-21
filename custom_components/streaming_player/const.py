@@ -12,6 +12,11 @@ CONF_EXTRACTION_METHOD: Final = "extraction_method"
 CONF_POPUP_SELECTORS: Final = "popup_selectors"
 CONF_VIDEO_SELECTORS: Final = "video_selectors"
 
+# Navidrome/Subsonic configuration
+CONF_NAVIDROME_URL: Final = "navidrome_url"
+CONF_NAVIDROME_USERNAME: Final = "navidrome_username"
+CONF_NAVIDROME_PASSWORD: Final = "navidrome_password"
+
 # Extraction methods
 EXTRACTION_YTDLP: Final = "yt-dlp"
 EXTRACTION_SELENIUM: Final = "selenium"
@@ -50,6 +55,15 @@ SERVICE_GET_PAGE_SOURCE: Final = "get_page_source"
 SERVICE_SET_STREAM_URL: Final = "set_stream_url"
 SERVICE_SET_TV: Final = "set_tv"
 
+# Music services
+SERVICE_GET_GENRES: Final = "get_genres"
+SERVICE_PLAY_GENRE: Final = "play_genre"
+SERVICE_PLAY_RANDOM: Final = "play_random"
+SERVICE_PLAY_SONG: Final = "play_song"
+SERVICE_SEARCH_MUSIC: Final = "search_music"
+SERVICE_GET_PLAYLISTS: Final = "get_playlists"
+SERVICE_PLAY_PLAYLIST: Final = "play_playlist"
+
 # Attributes
 ATTR_STREAM_URL: Final = "stream_url"
 ATTR_VIDEO_URL: Final = "video_url"
@@ -62,3 +76,12 @@ ATTR_TIMEOUT: Final = "timeout"
 ATTR_PAGE_SOURCE: Final = "page_source"
 ATTR_TV_IP: Final = "tv_ip"
 ATTR_TV_NAME: Final = "tv_name"
+
+# Music attributes
+ATTR_GENRE: Final = "genre"
+ATTR_SONG_ID: Final = "song_id"
+ATTR_PLAYLIST_ID: Final = "playlist_id"
+ATTR_QUERY: Final = "query"
+ATTR_COUNT: Final = "count"
+ATTR_SHUFFLE: Final = "shuffle"
+ATTR_CAST_TARGET: Final = "cast_target"
