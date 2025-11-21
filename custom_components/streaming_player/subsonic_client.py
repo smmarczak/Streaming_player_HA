@@ -220,7 +220,7 @@ class SubsonicClient:
         params["format"] = format
 
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{self._server_url}/rest/stream?{query}"
+        return f"{self._server_url.rstrip('/')}/rest/stream?{query}"
 
     def get_cover_art_url(self, cover_id: str, size: int = 300) -> str:
         """Get cover art URL."""

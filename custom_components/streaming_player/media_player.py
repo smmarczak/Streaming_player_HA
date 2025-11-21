@@ -436,7 +436,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
 
         self._current_song = song
         song_id = song.get("id")
-        stream_url = client.get_stream_url(song_id)
+        stream_url = client.get_stream_url(song_id).strip()
 
         _LOGGER.info(
             "Playing: %s by %s (%d/%d)",
@@ -564,6 +564,8 @@ class StreamingMediaPlayer(MediaPlayerEntity):
 
         if playback_success:
             self._video_url = stream_url
+            # Track which entity we're actually playing to
+            self._target_player = target_entity
             # Set up listener for when song ends
             await self._setup_end_listener(target_entity)
         else:
@@ -1143,7 +1145,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
 
         self._current_song = song
         song_id = song.get("id")
-        stream_url = client.get_stream_url(song_id)
+        stream_url = client.get_stream_url(song_id).strip()
 
         _LOGGER.info(
             "Playing: %s by %s",
