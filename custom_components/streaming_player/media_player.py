@@ -476,6 +476,14 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             # Set up listener for when song ends
             await self._setup_end_listener(target_entity)
 
+        except NotImplementedError:
+            _LOGGER.error(
+                "Media player %s does not support play_media. "
+                "Try a different device like a Voice PE or cast-enabled speaker.",
+                target_entity
+            )
+            self._attr_state = MediaPlayerState.IDLE
+            self.async_write_ha_state()
         except Exception as e:
             _LOGGER.error("Error playing to %s: %s", target_entity, e)
             self._attr_state = MediaPlayerState.IDLE
@@ -534,20 +542,43 @@ class StreamingMediaPlayer(MediaPlayerEntity):
     async def async_media_play(self) -> None:
         """Send play command."""
         _LOGGER.info("Play command received")
-        await self._play_stream(self._stream_url)
+
+        # If we have a queue, play from it
+        if self._queue:
+            await self._play_current_queue_item()
+            return
+
+        # Otherwise try video streaming if configured
+        if self._stream_url:
+            await self._play_stream(self._stream_url)
+        else:
+            _LOGGER.info("No queue or stream URL configured")
 
     async def async_media_stop(self) -> None:
         """Send stop command."""
         _LOGGER.info("Stop command received")
         await self._stop_stream()
 
+        # Clear queue on stop
+        self._queue = []
+        self._queue_index = 0
+
+        # Remove state listener
+        if self._state_listener_unsub:
+            self._state_listener_unsub()
+            self._state_listener_unsub = None
+
     async def _play_stream(self, url: str | None = None) -> None:
         """Play stream on Samsung TV."""
+        stream_url = url or self._stream_url
+
+        if not stream_url:
+            _LOGGER.warning("No stream URL provided")
+            return
+
         try:
             self._attr_state = MediaPlayerState.PLAYING
             self.async_write_ha_state()
-
-            stream_url = url or self._stream_url
 
             # Extract video URL based on configured method
             _LOGGER.info(
