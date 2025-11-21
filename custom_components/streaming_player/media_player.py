@@ -445,6 +445,7 @@ class StreamingMediaPlayer(MediaPlayerEntity):
             self._queue_index + 1,
             len(self._queue),
         )
+        _LOGGER.debug("Stream URL: %s", stream_url)
 
         self._attr_state = MediaPlayerState.PLAYING
         self.async_write_ha_state()
@@ -586,13 +587,17 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         @callback
         def _state_changed(event):
             """Handle target player state changes."""
+            old_state = event.data.get("old_state")
             new_state = event.data.get("new_state")
             if not new_state:
                 return
 
-            # Check if playback ended (idle or off)
-            if new_state.state in ("idle", "off", "paused"):
-                # Small delay to avoid catching brief pauses
+            # Only trigger when transitioning FROM playing TO idle/off
+            old_playing = old_state and old_state.state == "playing"
+            new_idle = new_state.state in ("idle", "off")
+
+            if old_playing and new_idle:
+                _LOGGER.debug("Target player finished: %s -> %s", old_state.state, new_state.state)
                 self.hass.async_create_task(self._check_and_play_next())
 
         self._state_listener_unsub = async_track_state_change_event(
@@ -602,10 +607,10 @@ class StreamingMediaPlayer(MediaPlayerEntity):
     async def _check_and_play_next(self) -> None:
         """Check if we should play next track."""
         import asyncio
-        await asyncio.sleep(1)  # Brief delay
+        await asyncio.sleep(3)  # Wait longer to avoid false triggers
 
-        # Check if target is still idle
-        if self._target_player:
+        # Check if target is still idle and we're still supposed to be playing
+        if self._target_player and self._attr_state == MediaPlayerState.PLAYING:
             target = self._target_player
             if not target.startswith("media_player."):
                 target = f"media_player.{target}"
@@ -644,14 +649,28 @@ class StreamingMediaPlayer(MediaPlayerEntity):
         _LOGGER.info("Stop command received")
         await self._stop_stream()
 
-        # Clear queue on stop
-        self._queue = []
-        self._queue_index = 0
-
-        # Remove state listener
+        # Remove state listener but keep queue for resume
         if self._state_listener_unsub:
             self._state_listener_unsub()
             self._state_listener_unsub = None
+
+        # Stop target player if set
+        target_entity = None
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self._config_entry_id, {})
+        if isinstance(entry_data, dict):
+            target_entity = entry_data.get("selected_media_player")
+        if target_entity:
+            if not target_entity.startswith("media_player."):
+                target_entity = f"media_player.{target_entity}"
+            try:
+                await self.hass.services.async_call(
+                    "media_player",
+                    "media_stop",
+                    {"entity_id": target_entity},
+                    blocking=True,
+                )
+            except Exception as e:
+                _LOGGER.debug("Could not stop target player: %s", e)
 
     async def _play_stream(self, url: str | None = None) -> None:
         """Play stream on Samsung TV."""
