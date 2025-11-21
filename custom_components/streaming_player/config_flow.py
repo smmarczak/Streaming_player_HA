@@ -35,8 +35,8 @@ _LOGGER = logging.getLogger(__name__)
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
-        vol.Required(CONF_STREAM_URL): str,
-        vol.Required(CONF_SAMSUNG_TV_IP): str,
+        vol.Optional(CONF_STREAM_URL, default=""): str,
+        vol.Optional(CONF_SAMSUNG_TV_IP, default=""): str,
         vol.Optional(CONF_SAMSUNG_TV_NAME, default="Samsung TV"): str,
         vol.Optional(
             CONF_EXTRACTION_METHOD, default=DEFAULT_EXTRACTION_METHOD
@@ -53,22 +53,33 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
-    # Validate URL format
-    if not data[CONF_STREAM_URL].startswith(("http://", "https://")):
+    # Validate URL format if provided
+    stream_url = data.get(CONF_STREAM_URL, "")
+    if stream_url and not stream_url.startswith(("http://", "https://")):
         raise ValueError("Invalid URL format")
 
-    # Validate IP address format (basic check)
-    ip = data[CONF_SAMSUNG_TV_IP]
-    parts = ip.split(".")
-    if len(parts) != 4:
-        raise ValueError("Invalid IP address")
+    # Validate IP address format if provided
+    ip = data.get(CONF_SAMSUNG_TV_IP, "")
+    if ip:
+        parts = ip.split(".")
+        if len(parts) != 4:
+            raise ValueError("Invalid IP address")
 
-    try:
-        for part in parts:
-            if not 0 <= int(part) <= 255:
-                raise ValueError("Invalid IP address")
-    except ValueError:
-        raise ValueError("Invalid IP address")
+        try:
+            for part in parts:
+                if not 0 <= int(part) <= 255:
+                    raise ValueError("Invalid IP address")
+        except ValueError:
+            raise ValueError("Invalid IP address")
+
+    # Validate Navidrome URL if provided
+    navidrome_url = data.get(CONF_NAVIDROME_URL, "")
+    if navidrome_url and not navidrome_url.startswith(("http://", "https://")):
+        raise ValueError("Invalid Navidrome URL format")
+
+    # Ensure at least one mode is configured
+    if not stream_url and not navidrome_url:
+        raise ValueError("Please configure either Stream URL or Navidrome URL")
 
     # Return info that you want to store in the config entry.
     return {"title": data[CONF_NAME]}
@@ -142,11 +153,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         options_schema = vol.Schema(
             {
-                vol.Required(
+                vol.Optional(
                     CONF_STREAM_URL,
                     default=current_data.get(CONF_STREAM_URL, ""),
                 ): str,
-                vol.Required(
+                vol.Optional(
                     CONF_SAMSUNG_TV_IP,
                     default=current_data.get(CONF_SAMSUNG_TV_IP, ""),
                 ): str,
